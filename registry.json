@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-10-09T11:23:32.340Z",
+  "updatedAt": "2026-10-09T15:41:14.266Z",
   "plugins": [
     {
       "id": "com.toolbox.command-executor",
@@ -14,7 +14,7 @@
       "license": "MIT",
       "repo": "https://github.com/tuple97/toolbox-plugins/tree/main/plugins/com.toolbox.command-executor",
       "download": "https://github.com/tuple97/toolbox-plugins/releases/download/latest/com.toolbox.command-executor-1.0.0.zip",
-      "checksum": "sha256:1bc2c0f1377cbab23078f0b6fbb0bb0a180254553fbd2764465341921db2e7ef",
+      "checksum": "sha256:8373c6c5c971408ead9859942ce021cea95c755dd6dd84de3663bce4adb3f8d0",
       "signature": "",
       "official": true,
       "engines": {
@@ -90,7 +90,7 @@
       "license": "MIT",
       "repo": "https://github.com/tuple97/toolbox-plugins/tree/main/plugins/com.toolbox.connections",
       "download": "https://github.com/tuple97/toolbox-plugins/releases/download/latest/com.toolbox.connections-1.0.0.zip",
-      "checksum": "sha256:87ff9b3b4e527f392b79679ada2b4be6c6090530d1b114e8d327ae3ad14c76b0",
+      "checksum": "sha256:651cafa9af4798802c38ffc72a11a41c8cbe8d5b3334846b1f91cb11db654b7f",
       "signature": "",
       "official": true,
       "engines": {
@@ -137,7 +137,7 @@
       "license": "MIT",
       "repo": "https://github.com/tuple97/toolbox-plugins/tree/main/plugins/com.toolbox.db-query",
       "download": "https://github.com/tuple97/toolbox-plugins/releases/download/latest/com.toolbox.db-query-1.0.0.zip",
-      "checksum": "sha256:f439a333815328726653f85b9aee362666742e154747df6202c5ac8daec3e027",
+      "checksum": "sha256:7d7d248f8b76334f74662bd44dc8de7b31dc3a97c2dcc99e451a82f431fe7197",
       "signature": "",
       "official": true,
       "engines": {
@@ -187,7 +187,7 @@
       "license": "MIT",
       "repo": "https://github.com/tuple97/toolbox-plugins/tree/main/plugins/com.toolbox.dictionary",
       "download": "https://github.com/tuple97/toolbox-plugins/releases/download/latest/com.toolbox.dictionary-1.0.0.zip",
-      "checksum": "sha256:afa60465fec32bfa430018c333c95bbe19c24112b93c2df15587f08af12eba42",
+      "checksum": "sha256:13ef8429df8db93bd2e9044bae48a42afbb3fcf4723ca4ba115160eaa9af9288",
       "signature": "",
       "official": true,
       "engines": {
@@ -234,7 +234,7 @@
       "license": "MIT",
       "repo": "https://github.com/tuple97/toolbox-plugins/tree/main/plugins/com.toolbox.sql-template",
       "download": "https://github.com/tuple97/toolbox-plugins/releases/download/latest/com.toolbox.sql-template-1.0.0.zip",
-      "checksum": "sha256:a624af11b1c6dfc246ec575c7ece754f076f2c182536d795426dcdd3f43601e6",
+      "checksum": "sha256:3ba4daf346c02a4405e233a380f630ef398fb1ee98b2a0a5ff2a5da84e1d8776",
       "signature": "",
       "official": true,
       "engines": {
