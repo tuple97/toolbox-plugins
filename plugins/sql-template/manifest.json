@@ -1,0 +1,38 @@
+{
+  "id": "com.toolbox.sql-template",
+  "name": "SQL 模板",
+  "version": "1.0.0",
+  "publisher": "toolbox",
+  "description": "维护 SQL 模板：变量配置、字段映射、导出模板与前置/后置脚本。",
+  "author": "Toolbox",
+  "license": "MIT",
+  "icon": "document",
+  "engines": {
+    "toolbox": ">=0.1.0"
+  },
+  "dependencies": {
+    "com.toolbox.connections": "^1.0.0"
+  },
+  "permissions": {},
+  "runtime": {
+    "backend": "none",
+    "frontend": "frontend/index.js"
+  },
+  "contributes": {
+    "sidebar": {
+      "groups": [
+        { "id": "database", "label": "数据库", "icon": "link", "order": 10 }
+      ]
+    },
+    "tools": [
+      {
+        "type": "sql-template",
+        "label": "SQL 模板",
+        "icon": "document",
+        "multi": false,
+        "description": "维护 SQL 模板与变量配置（单例标签）",
+        "group": "数据库"
+      }
+    ]
+  }
+}

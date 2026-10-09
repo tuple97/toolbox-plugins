@@ -1,0 +1,59 @@
+{
+  "id": "com.example.hello",
+  "name": "示例插件",
+  "version": "1.0.0",
+  "publisher": "example",
+  "description": "插件体系的最小可用示例：注册一个多例工具视图，并调用自己的后端方法。",
+  "author": "Toolbox",
+  "license": "MIT",
+  "icon": "puzzle",
+  "engines": {
+    "toolbox": ">=0.1.0"
+  },
+  "permissions": {
+    "storage": true
+  },
+  "runtime": {
+    "backend": "js",
+    "entry": "backend/index.js",
+    "frontend": "frontend/index.js"
+  },
+  "contributes": {
+    "tools": [
+      {
+        "type": "hello-panel",
+        "label": "示例插件",
+        "icon": "puzzle",
+        "multi": true,
+        "description": "演示插件工具视图与后端调用",
+        "group": "示例"
+      }
+    ],
+    "settings": [
+      {
+        "key": "greeting",
+        "type": "string",
+        "title": "问候语前缀",
+        "default": "你好"
+      }
+    ],
+    "mcp": {
+      "tools": [
+        {
+          "name": "hello_greet",
+          "description": "返回一句问候语",
+          "handler": "greet",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "要问候的对象"
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

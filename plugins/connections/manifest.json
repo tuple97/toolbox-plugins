@@ -1,0 +1,35 @@
+{
+  "id": "com.toolbox.connections",
+  "name": "连接管理",
+  "version": "1.0.0",
+  "publisher": "toolbox",
+  "description": "维护 MySQL / PostgreSQL 连接配置：SSL、超时、读写与生产标记，并可查看库表元数据。",
+  "author": "Toolbox",
+  "license": "MIT",
+  "icon": "link",
+  "engines": {
+    "toolbox": ">=0.1.0"
+  },
+  "permissions": {},
+  "runtime": {
+    "backend": "none",
+    "frontend": "frontend/index.js"
+  },
+  "contributes": {
+    "sidebar": {
+      "groups": [
+        { "id": "database", "label": "数据库", "icon": "link", "order": 10 }
+      ]
+    },
+    "tools": [
+      {
+        "type": "connections",
+        "label": "连接管理",
+        "icon": "link",
+        "multi": false,
+        "description": "维护数据库连接（单例标签）",
+        "group": "数据库"
+      }
+    ]
+  }
+}

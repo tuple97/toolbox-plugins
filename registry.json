@@ -1,0 +1,275 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-10-09T11:23:32.340Z",
+  "plugins": [
+    {
+      "id": "com.toolbox.command-executor",
+      "name": "SQL 执行",
+      "version": "1.0.0",
+      "publisher": "toolbox",
+      "description": "自由编写并执行 SQL：多语句批量、逐条运行、取消、格式化与智能补全。",
+      "author": "Toolbox",
+      "icon": "terminal",
+      "homepage": "",
+      "license": "MIT",
+      "repo": "https://github.com/tuple97/toolbox-plugins/tree/main/plugins/com.toolbox.command-executor",
+      "download": "https://github.com/tuple97/toolbox-plugins/releases/download/latest/com.toolbox.command-executor-1.0.0.zip",
+      "checksum": "sha256:1bc2c0f1377cbab23078f0b6fbb0bb0a180254553fbd2764465341921db2e7ef",
+      "signature": "",
+      "official": true,
+      "engines": {
+        "toolbox": ">=0.1.0"
+      },
+      "dependencies": {
+        "com.toolbox.connections": "^1.0.0"
+      },
+      "permissions": {},
+      "runtime": {
+        "backend": "none",
+        "frontend": "frontend/index.js"
+      },
+      "contributes": {
+        "sidebar": {
+          "groups": [
+            {
+              "id": "database",
+              "label": "数据库",
+              "icon": "link",
+              "order": 10
+            }
+          ]
+        },
+        "settings": [
+          {
+            "key": "pageSize",
+            "type": "number",
+            "title": "结果每页条数",
+            "default": "200",
+            "description": "查询结果分页展示时的每页记录数",
+            "panel": "main",
+            "order": 10
+          },
+          {
+            "key": "confirmDangerous",
+            "type": "boolean",
+            "title": "写操作二次确认",
+            "default": "true",
+            "panel": "main",
+            "order": 20
+          }
+        ],
+        "settingsPanels": [
+          {
+            "id": "main",
+            "title": "SQL 执行",
+            "icon": "terminal",
+            "order": 200
+          }
+        ],
+        "tools": [
+          {
+            "type": "command-executor",
+            "label": "SQL 执行",
+            "icon": "terminal",
+            "multi": true,
+            "description": "自由编写并执行 SQL，支持取消与智能补全",
+            "group": "数据库"
+          }
+        ]
+      }
+    },
+    {
+      "id": "com.toolbox.connections",
+      "name": "连接管理",
+      "version": "1.0.0",
+      "publisher": "toolbox",
+      "description": "维护 MySQL / PostgreSQL 连接配置：SSL、超时、读写与生产标记，并可查看库表元数据。",
+      "author": "Toolbox",
+      "icon": "link",
+      "homepage": "",
+      "license": "MIT",
+      "repo": "https://github.com/tuple97/toolbox-plugins/tree/main/plugins/com.toolbox.connections",
+      "download": "https://github.com/tuple97/toolbox-plugins/releases/download/latest/com.toolbox.connections-1.0.0.zip",
+      "checksum": "sha256:87ff9b3b4e527f392b79679ada2b4be6c6090530d1b114e8d327ae3ad14c76b0",
+      "signature": "",
+      "official": true,
+      "engines": {
+        "toolbox": ">=0.1.0"
+      },
+      "dependencies": {},
+      "permissions": {},
+      "runtime": {
+        "backend": "none",
+        "frontend": "frontend/index.js"
+      },
+      "contributes": {
+        "sidebar": {
+          "groups": [
+            {
+              "id": "database",
+              "label": "数据库",
+              "icon": "link",
+              "order": 10
+            }
+          ]
+        },
+        "tools": [
+          {
+            "type": "connections",
+            "label": "连接管理",
+            "icon": "link",
+            "multi": false,
+            "description": "维护数据库连接（单例标签）",
+            "group": "数据库"
+          }
+        ]
+      }
+    },
+    {
+      "id": "com.toolbox.db-query",
+      "name": "SQL 查询",
+      "version": "1.0.0",
+      "publisher": "toolbox",
+      "description": "按模板执行查询：变量表单、分页结果、字段映射、词典翻译与结果导出。",
+      "author": "Toolbox",
+      "icon": "search",
+      "homepage": "",
+      "license": "MIT",
+      "repo": "https://github.com/tuple97/toolbox-plugins/tree/main/plugins/com.toolbox.db-query",
+      "download": "https://github.com/tuple97/toolbox-plugins/releases/download/latest/com.toolbox.db-query-1.0.0.zip",
+      "checksum": "sha256:f439a333815328726653f85b9aee362666742e154747df6202c5ac8daec3e027",
+      "signature": "",
+      "official": true,
+      "engines": {
+        "toolbox": ">=0.1.0"
+      },
+      "dependencies": {
+        "com.toolbox.connections": "^1.0.0",
+        "com.toolbox.sql-template": "^1.0.0"
+      },
+      "permissions": {},
+      "runtime": {
+        "backend": "none",
+        "frontend": "frontend/index.js"
+      },
+      "contributes": {
+        "sidebar": {
+          "groups": [
+            {
+              "id": "database",
+              "label": "数据库",
+              "icon": "link",
+              "order": 10
+            }
+          ]
+        },
+        "tools": [
+          {
+            "type": "db-query",
+            "label": "SQL 查询",
+            "icon": "search",
+            "multi": true,
+            "description": "按模板执行查询（多例标签，可同时打开多个）",
+            "group": "数据库"
+          }
+        ]
+      }
+    },
+    {
+      "id": "com.toolbox.dictionary",
+      "name": "词典",
+      "version": "1.0.0",
+      "publisher": "toolbox",
+      "description": "维护本地词典数据，用于查询结果集的值翻译（如状态码、类型枚举）。",
+      "author": "Toolbox",
+      "icon": "book",
+      "homepage": "",
+      "license": "MIT",
+      "repo": "https://github.com/tuple97/toolbox-plugins/tree/main/plugins/com.toolbox.dictionary",
+      "download": "https://github.com/tuple97/toolbox-plugins/releases/download/latest/com.toolbox.dictionary-1.0.0.zip",
+      "checksum": "sha256:afa60465fec32bfa430018c333c95bbe19c24112b93c2df15587f08af12eba42",
+      "signature": "",
+      "official": true,
+      "engines": {
+        "toolbox": ">=0.1.0"
+      },
+      "dependencies": {},
+      "permissions": {},
+      "runtime": {
+        "backend": "none",
+        "frontend": "frontend/index.js"
+      },
+      "contributes": {
+        "sidebar": {
+          "groups": [
+            {
+              "id": "records",
+              "label": "本地记录",
+              "icon": "book",
+              "order": 20
+            }
+          ]
+        },
+        "tools": [
+          {
+            "type": "dictionary",
+            "label": "词典",
+            "icon": "book",
+            "multi": false,
+            "description": "维护本地词典数据（单例标签）",
+            "group": "本地记录"
+          }
+        ]
+      }
+    },
+    {
+      "id": "com.toolbox.sql-template",
+      "name": "SQL 模板",
+      "version": "1.0.0",
+      "publisher": "toolbox",
+      "description": "维护 SQL 模板：变量配置、字段映射、导出模板与前置/后置脚本。",
+      "author": "Toolbox",
+      "icon": "document",
+      "homepage": "",
+      "license": "MIT",
+      "repo": "https://github.com/tuple97/toolbox-plugins/tree/main/plugins/com.toolbox.sql-template",
+      "download": "https://github.com/tuple97/toolbox-plugins/releases/download/latest/com.toolbox.sql-template-1.0.0.zip",
+      "checksum": "sha256:a624af11b1c6dfc246ec575c7ece754f076f2c182536d795426dcdd3f43601e6",
+      "signature": "",
+      "official": true,
+      "engines": {
+        "toolbox": ">=0.1.0"
+      },
+      "dependencies": {
+        "com.toolbox.connections": "^1.0.0"
+      },
+      "permissions": {},
+      "runtime": {
+        "backend": "none",
+        "frontend": "frontend/index.js"
+      },
+      "contributes": {
+        "sidebar": {
+          "groups": [
+            {
+              "id": "database",
+              "label": "数据库",
+              "icon": "link",
+              "order": 10
+            }
+          ]
+        },
+        "tools": [
+          {
+            "type": "sql-template",
+            "label": "SQL 模板",
+            "icon": "document",
+            "multi": false,
+            "description": "维护 SQL 模板与变量配置（单例标签）",
+            "group": "数据库"
+          }
+        ]
+      }
+    }
+  ]
+}

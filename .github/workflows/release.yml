@@ -1,0 +1,101 @@
+name: Release Plugins
+
+# 触发方式：
+#   1. 手动触发（推荐，可指定批次 tag）；
+#   2. 推送 plugins-* 形式的 tag。
+#
+# 流水线做完四件事：构建全部插件 → 生成并签名索引 →
+# 创建 Release 上传插件包 → 把索引提交回 main。
+# 宿主拉取的是 main 分支上的 registry.json，所以最后一步是必须的。
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: '发布批次 tag（留空自动生成，如 plugins-20261008-1530）'
+        required: false
+        type: string
+  push:
+    tags:
+      - 'plugins-*'
+
+# 需要写权限：创建 Release 与提交索引回主分支
+permissions:
+  contents: write
+
+concurrency:
+  # 同一时间只允许一个发布流程，避免索引互相覆盖
+  group: release-plugins
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出仓库
+        uses: actions/checkout@v4
+        with:
+          # 需要完整历史才能正常提交回主分支
+          fetch-depth: 0
+
+      - name: 安装 Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: 启用 pnpm
+        run: corepack enable
+
+      - name: 安装依赖
+        run: pnpm install --no-frozen-lockfile
+
+      - name: 计算发布批次 tag
+        id: tag
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "push" ]; then
+            TAG="${GITHUB_REF_NAME}"
+          elif [ -n "${{ inputs.tag }}" ]; then
+            TAG="${{ inputs.tag }}"
+          else
+            TAG="plugins-$(date -u +%Y%m%d-%H%M)"
+          fi
+          echo "value=$TAG" >> "$GITHUB_OUTPUT"
+          echo "本次发布 tag：$TAG"
+
+      - name: 构建全部插件
+        env:
+          RELEASE_TAG: ${{ steps.tag.outputs.value }}
+        run: pnpm build
+
+      - name: 签名插件索引
+        env:
+          # 未配置该 Secret 时脚本会告警并跳过签名（宿主会提示校验强度较低）
+          REGISTRY_SIGNING_KEY: ${{ secrets.REGISTRY_SIGNING_KEY }}
+        run: pnpm sign
+
+      - name: 创建 Release 并上传插件包
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.tag.outputs.value }}
+        run: |
+          set -euo pipefail
+          gh release create "$TAG" release/*.zip \
+            --title "$TAG" \
+            --notes "自动构建的插件包（由 release.yml 生成）" \
+            || gh release upload "$TAG" release/*.zip --clobber
+
+      - name: 提交索引回主分支
+        env:
+          TAG: ${{ steps.tag.outputs.value }}
+        run: |
+          set -euo pipefail
+          git config user.name  'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git add registry.json
+          [ -f registry.json.sig ] && git add registry.json.sig || true
+          if git diff --cached --quiet; then
+            echo '索引没有变化，跳过提交'
+            exit 0
+          fi
+          git commit -m "chore(registry): 更新插件索引 ${TAG}"
+          git push

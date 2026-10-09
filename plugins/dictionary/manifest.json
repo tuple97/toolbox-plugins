@@ -1,0 +1,35 @@
+{
+  "id": "com.toolbox.dictionary",
+  "name": "词典",
+  "version": "1.0.0",
+  "publisher": "toolbox",
+  "description": "维护本地词典数据，用于查询结果集的值翻译（如状态码、类型枚举）。",
+  "author": "Toolbox",
+  "license": "MIT",
+  "icon": "book",
+  "engines": {
+    "toolbox": ">=0.1.0"
+  },
+  "permissions": {},
+  "runtime": {
+    "backend": "none",
+    "frontend": "frontend/index.js"
+  },
+  "contributes": {
+    "sidebar": {
+      "groups": [
+        { "id": "records", "label": "本地记录", "icon": "book", "order": 20 }
+      ]
+    },
+    "tools": [
+      {
+        "type": "dictionary",
+        "label": "词典",
+        "icon": "book",
+        "multi": false,
+        "description": "维护本地词典数据（单例标签）",
+        "group": "本地记录"
+      }
+    ]
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "name": "toolbox-plugins",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "开发工具箱（Toolbox）官方插件仓库：插件源码、构建工具与插件索引",
+  "packageManager": "pnpm@11.17.0",
+  "engines": {
+    "node": ">=24.16.0"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "build:plugin": "node scripts/build.mjs --only",
+    "keygen": "node scripts/keygen.mjs",
+    "sign": "node scripts/sign.mjs",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.0",
+    "typescript": "^5.6.3",
+    "vite": "^7.0.0",
+    "vue": "^3.5.0"
+  }
+}

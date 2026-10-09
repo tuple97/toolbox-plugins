@@ -1,0 +1,12 @@
+{
+  "name": "@toolbox/plugin-sdk",
+  "version": "0.1.0",
+  "private": true,
+  "description": "开发工具箱插件的前端类型定义（仅类型，运行时由宿主注入）",
+  "types": "index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts"
+    }
+  }
+}

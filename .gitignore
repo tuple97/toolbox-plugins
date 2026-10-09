@@ -1,0 +1,14 @@
+node_modules/
+dist/
+release/
+
+# 构建脚本回写到插件目录的前端产物（便于直接安装源码目录，不入库）
+plugins/*/frontend/
+
+# 签名私钥绝不入库（CI 里用 GitHub Secret 注入）
+keys/
+*.key
+*.pem
+
+.DS_Store
+*.log

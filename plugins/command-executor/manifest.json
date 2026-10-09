@@ -1,0 +1,60 @@
+{
+  "id": "com.toolbox.command-executor",
+  "name": "SQL 执行",
+  "version": "1.0.0",
+  "publisher": "toolbox",
+  "description": "自由编写并执行 SQL：多语句批量、逐条运行、取消、格式化与智能补全。",
+  "author": "Toolbox",
+  "license": "MIT",
+  "icon": "terminal",
+  "engines": {
+    "toolbox": ">=0.1.0"
+  },
+  "dependencies": {
+    "com.toolbox.connections": "^1.0.0"
+  },
+  "permissions": {},
+  "runtime": {
+    "backend": "none",
+    "frontend": "frontend/index.js"
+  },
+  "contributes": {
+    "sidebar": {
+      "groups": [
+        { "id": "database", "label": "数据库", "icon": "link", "order": 10 }
+      ]
+    },
+    "settings": [
+      {
+        "key": "pageSize",
+        "type": "number",
+        "title": "结果每页条数",
+        "default": "200",
+        "description": "查询结果分页展示时的每页记录数",
+        "panel": "main",
+        "order": 10
+      },
+      {
+        "key": "confirmDangerous",
+        "type": "boolean",
+        "title": "写操作二次确认",
+        "default": "true",
+        "panel": "main",
+        "order": 20
+      }
+    ],
+    "settingsPanels": [
+      { "id": "main", "title": "SQL 执行", "icon": "terminal", "order": 200 }
+    ],
+    "tools": [
+      {
+        "type": "command-executor",
+        "label": "SQL 执行",
+        "icon": "terminal",
+        "multi": true,
+        "description": "自由编写并执行 SQL，支持取消与智能补全",
+        "group": "数据库"
+      }
+    ]
+  }
+}

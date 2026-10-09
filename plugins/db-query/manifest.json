@@ -1,0 +1,39 @@
+{
+  "id": "com.toolbox.db-query",
+  "name": "SQL 查询",
+  "version": "1.0.0",
+  "publisher": "toolbox",
+  "description": "按模板执行查询：变量表单、分页结果、字段映射、词典翻译与结果导出。",
+  "author": "Toolbox",
+  "license": "MIT",
+  "icon": "search",
+  "engines": {
+    "toolbox": ">=0.1.0"
+  },
+  "dependencies": {
+    "com.toolbox.connections": "^1.0.0",
+    "com.toolbox.sql-template": "^1.0.0"
+  },
+  "permissions": {},
+  "runtime": {
+    "backend": "none",
+    "frontend": "frontend/index.js"
+  },
+  "contributes": {
+    "sidebar": {
+      "groups": [
+        { "id": "database", "label": "数据库", "icon": "link", "order": 10 }
+      ]
+    },
+    "tools": [
+      {
+        "type": "db-query",
+        "label": "SQL 查询",
+        "icon": "search",
+        "multi": true,
+        "description": "按模板执行查询（多例标签，可同时打开多个）",
+        "group": "数据库"
+      }
+    ]
+  }
+}
