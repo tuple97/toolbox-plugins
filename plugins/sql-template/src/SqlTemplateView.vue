@@ -723,7 +723,12 @@ onBeforeUnmount(() => {
 
           <TabGroup v-model="configTab" :items="CONFIG_TABS" class="tpl-mgr__tabs">
             <template #panel-variables>
-              <VariableConfigPanel v-model="variableConfigs" :conn-id="form.connId || null" />
+              <!--
+                带上连接列表与生效库：动态选项 SQL 编辑器的「数据源 / 库」默认就是
+                「跟随模板」，面板据此显示跟随目标（也省掉面板再拉一次连接列表）。
+              -->
+              <VariableConfigPanel v-model="variableConfigs" :conn-id="form.connId || null"
+                :database="effectiveDatabase" :connections="connections" />
             </template>
 
             <template #panel-fields>
@@ -824,6 +829,7 @@ onBeforeUnmount(() => {
 }
 
 .tpl-mgr__item.is-active {
+  /* 选中只用底色表示，不加左侧竖条 */
   background: var(--active-bg);
 }
 
@@ -995,6 +1001,10 @@ onBeforeUnmount(() => {
   min-height: 0;
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
+  /*
+   * 不加底色：与左侧模板列表、上方 SQL 区两张卡片保持一致（只描边、透出应用背景）。
+   * 同一页只有这一块是另一种底色，看着就像颜色不对。
+   */
   overflow: hidden;
 }
 
@@ -1002,6 +1012,7 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex: 0 0 auto;
   padding: 6px 12px;
   border-bottom: 1px solid var(--border-color);
   font-size: var(--app-font-size-sm);
@@ -1014,10 +1025,25 @@ onBeforeUnmount(() => {
   flex-direction: column;
   flex: 1;
   min-height: 0;
-  padding: 0 12px;
 }
 
-/* 页签栏与内容区的版面由 TabGroup 自带（页签栏固定 + 内容占满剩余高度） */
+/*
+ * 页签栏与内容区的内边距按全局规范（与连接管理页同一套数值）。
+ *
+ * 内边距必须加在页签栏 / 内容区上，而不是外层容器：加在外层会让页签栏
+ * 整体收窄，下划线左右各缩进一截，看着不像全局的页签。
+ */
+.tpl-mgr__tabs :deep(.app-tabgroup__tabs) {
+  flex: 0 0 auto;
+  padding: 6px 12px 0;
+}
+
+.tpl-mgr__tabs :deep(.app-tabgroup__content) {
+  flex: 1;
+  min-height: 0;
+  padding: 14px 16px;
+  overflow: auto;
+}
 
 .tpl-mgr__hint {
   margin: 0 0 8px;

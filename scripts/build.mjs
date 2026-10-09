@@ -118,11 +118,29 @@ async function buildFrontend(pluginDir, outDir, pluginId) {
   const cssPath = path.join(outDir, 'plugin.css')
   if (fs.existsSync(cssPath) && fs.existsSync(jsPath)) {
     const css = fs.readFileSync(cssPath, 'utf8')
+    const id = JSON.stringify(pluginId)
+    /*
+     * 样式复用同一个 <style> 而不是每次新 append 一个。
+     *
+     * 插件入口 URL 带安装令牌（?v=updatedAt），重装后模块会重新求值；若每次都
+     * appendChild，旧的那份会一直留在 <head> 里，两份样式同时生效 ——
+     * 「删掉一条声明」这类改动就永远看不到（旧元素里那条还在），
+     * 表现就是「插件重装了但界面没变」。
+     * 宿主侧也会在卸载 / 重载时摘掉这些元素（见 toolbox 的 plugins/registry.ts），
+     * 这里再做一层幂等，保证同一份文档里每个插件只有一个样式元素。
+     */
     const inject = `\n;(() => { if (typeof document === 'undefined') return;`
-      + ` const s = document.createElement('style');`
-      + ` s.setAttribute('data-toolbox-plugin', ${JSON.stringify(pluginId)});`
-      + ` s.textContent = ${JSON.stringify(css)};`
-      + ` document.head.appendChild(s) })();\n`
+      + ` const id = ${id};`
+      + ` const nodes = document.head.querySelectorAll('style[data-toolbox-plugin="' + id + '"]');`
+      + ` const s = nodes[0];`
+      + ` for (let i = 1; i < nodes.length; i++) nodes[i].remove();`
+      + ` if (!s) {`
+      + ` const created = document.createElement('style');`
+      + ` created.setAttribute('data-toolbox-plugin', id);`
+      + ` document.head.appendChild(created);`
+      + ` created.textContent = ${JSON.stringify(css)};`
+      + ` return }`
+      + ` s.textContent = ${JSON.stringify(css)} })();\n`
     fs.appendFileSync(jsPath, inject)
     fs.unlinkSync(cssPath)
   }
