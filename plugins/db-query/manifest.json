@@ -1,4 +1,5 @@
 {
+  "manifestVersion": 1,
   "id": "com.toolbox.db-query",
   "name": "SQL 查询",
   "version": "1.0.0",
@@ -8,7 +9,8 @@
   "license": "MIT",
   "icon": "search",
   "engines": {
-    "toolbox": ">=0.1.0"
+    "toolbox": ">=0.1.0",
+    "pluginApi": "^1.0.0"
   },
   "dependencies": {
     "com.toolbox.connections": "^1.0.0",
@@ -32,7 +34,7 @@
         "icon": "search",
         "multi": true,
         "description": "按模板执行查询（多例标签，可同时打开多个）",
-        "group": "数据库"
+        "group": "database"
       }
     ]
   }

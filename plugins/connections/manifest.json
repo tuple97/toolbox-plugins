@@ -1,4 +1,5 @@
 {
+  "manifestVersion": 1,
   "id": "com.toolbox.connections",
   "name": "连接管理",
   "version": "1.0.0",
@@ -8,7 +9,8 @@
   "license": "MIT",
   "icon": "link",
   "engines": {
-    "toolbox": ">=0.1.0"
+    "toolbox": ">=0.1.0",
+    "pluginApi": "^1.0.0"
   },
   "permissions": {},
   "runtime": {
@@ -28,7 +30,7 @@
         "icon": "link",
         "multi": false,
         "description": "维护数据库连接（单例标签）",
-        "group": "数据库"
+        "group": "database"
       }
     ]
   }

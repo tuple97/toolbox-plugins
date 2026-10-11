@@ -1,4 +1,5 @@
 {
+  "manifestVersion": 1,
   "id": "com.toolbox.command-executor",
   "name": "SQL 执行",
   "version": "1.0.0",
@@ -8,7 +9,8 @@
   "license": "MIT",
   "icon": "terminal",
   "engines": {
-    "toolbox": ">=0.1.0"
+    "toolbox": ">=0.1.0",
+    "pluginApi": "^1.0.0"
   },
   "dependencies": {
     "com.toolbox.connections": "^1.0.0"
@@ -53,7 +55,7 @@
         "icon": "terminal",
         "multi": true,
         "description": "自由编写并执行 SQL，支持取消与智能补全",
-        "group": "数据库"
+        "group": "database"
       }
     ]
   }

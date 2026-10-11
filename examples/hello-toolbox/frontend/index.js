@@ -13,9 +13,13 @@
  *     正式插件可以写 SFC，用 esbuild/vite 打包成单文件 ESM 后再发布。
  */
 
-export function activate(api) {
+export async function activate(api) {
   const { defineComponent, h, ref, onMounted } = api.vue
   const { Button, Input, Tag } = api.ui
+
+  // 插件自己持有的资源，deactivate 时必须释放干净，
+  // 否则「重载插件」会让监听器越堆越多
+  const disposers = []
 
   const HelloPanel = defineComponent({
     name: 'HelloPluginPanel',
@@ -120,5 +124,22 @@ export function activate(api) {
     component: HelloPanel,
   })
 
+  // 示例：订阅宿主事件时把取消函数记下来
+  disposers.push(api.host.on('demo', () => {}))
+
   api.log('前端已激活')
+
+  // 宿主在停用、卸载或重载插件前会调用它；注册项由宿主统一回收
+  return {
+    async deactivate() {
+      for (const dispose of disposers.splice(0)) {
+        try {
+          dispose()
+        }
+        catch (error) {
+          api.log('释放资源失败', error)
+        }
+      }
+    },
+  }
 }

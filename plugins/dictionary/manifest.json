@@ -1,4 +1,5 @@
 {
+  "manifestVersion": 1,
   "id": "com.toolbox.dictionary",
   "name": "词典",
   "version": "1.0.0",
@@ -8,7 +9,8 @@
   "license": "MIT",
   "icon": "book",
   "engines": {
-    "toolbox": ">=0.1.0"
+    "toolbox": ">=0.1.0",
+    "pluginApi": "^1.0.0"
   },
   "permissions": {},
   "runtime": {
@@ -28,7 +30,7 @@
         "icon": "book",
         "multi": false,
         "description": "维护本地词典数据（单例标签）",
-        "group": "本地记录"
+        "group": "records"
       }
     ]
   }

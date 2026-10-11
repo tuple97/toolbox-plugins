@@ -1,4 +1,5 @@
 {
+  "manifestVersion": 1,
   "id": "com.toolbox.sql-template",
   "name": "SQL 模板",
   "version": "1.0.0",
@@ -8,7 +9,8 @@
   "license": "MIT",
   "icon": "document",
   "engines": {
-    "toolbox": ">=0.1.0"
+    "toolbox": ">=0.1.0",
+    "pluginApi": "^1.0.0"
   },
   "dependencies": {
     "com.toolbox.connections": "^1.0.0"
@@ -31,7 +33,7 @@
         "icon": "document",
         "multi": false,
         "description": "维护 SQL 模板与变量配置（单例标签）",
-        "group": "数据库"
+        "group": "database"
       }
     ]
   }

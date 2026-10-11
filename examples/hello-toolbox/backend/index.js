@@ -26,14 +26,17 @@ toolbox.handler('greet', function (args) {
   }
 })
 
-// 演示插件间调用：其它插件可以 call('com.example.hello', 'ping')
+// 演示插件间调用：其它插件在「声明了对本插件的依赖」之后
+// 可以 call('com.example.hello', 'ping')。
+//
+// 只有清单 runtime.exports 中列出的 handler 才对外开放，
+// 其它 handler（例如下面的私有方法）只能被本插件自己调用。
 toolbox.handler('ping', function () {
   return { pong: true, from: toolbox.plugin.id }
 })
 
-// 供前端一次性取回插件自己的全部配置
-toolbox.handler('__listSettings', function () {
-  return toolbox.storage.all()
+toolbox.handler('__internal_helper', function () {
+  return '这个 handler 没有出现在 runtime.exports 中，跨插件调用会被拒绝'
 })
 
 toolbox.log('后端已加载')
