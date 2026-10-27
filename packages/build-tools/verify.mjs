@@ -37,6 +37,15 @@ function stable(value) {
   }
   if (typeof value === 'object') {
     const keys = Object.keys(value).sort()
+    /*
+     * 空对象与「没有声明」等价。
+     *
+     * 索引由构建脚本统一补成 {}（如 dependencies / engines），而插件清单里
+     * 通常直接省略这些字段 —— 两者表达的是同一件事，按字节比就会假报不一致。
+     */
+    if (keys.length === 0) {
+      return 'null'
+    }
     return `{${keys.map(key => `${key}:${stable(value[key])}`).join(',')}}`
   }
   return JSON.stringify(value)

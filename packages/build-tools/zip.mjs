@@ -34,13 +34,28 @@ function crc32(buffer) {
   return (c ^ 0xFFFFFFFF) >>> 0
 }
 
-/** 把 Date 编码成 DOS 时间/日期 */
+/**
+ * 把 Date 编码成 DOS 时间/日期。
+ *
+ * 一律按 UTC 取值：打包时间会写进 zip 头，若用本地时区，同一份产物在不同
+ * 时区的机器上字节就不同，摘要跟着变（发布流程没法回答「同版本是不是同一份
+ * 内容」）。
+ */
 function dosDateTime(date) {
-  const year = Math.max(1980, date.getFullYear())
-  const time = (date.getHours() << 11) | (date.getMinutes() << 5) | (date.getSeconds() >> 1)
-  const day = ((year - 1980) << 9) | ((date.getMonth() + 1) << 5) | date.getDate()
+  const year = Math.max(1980, date.getUTCFullYear())
+  const time = (date.getUTCHours() << 11) | (date.getUTCMinutes() << 5) | (date.getUTCSeconds() >> 1)
+  const day = ((year - 1980) << 9) | ((date.getUTCMonth() + 1) << 5) | date.getUTCDate()
   return { time, date: day }
 }
+
+/**
+ * 默认打包时间戳：DOS 时间的起点。
+ *
+ * 打包时间属于「构建环境噪声」，不该影响产物：固定成常量后，同一份源码
+ * 在任何机器、任何时刻打出来的 zip 字节完全一致，摘要才具备「同版本同一份
+ * 内容」的含义（见 registry.mjs 的摘要不可变规则）。
+ */
+const FIXED_MODIFIED = new Date(Date.UTC(1980, 0, 1))
 
 /**
  * 打包成 zip。
@@ -51,7 +66,7 @@ function dosDateTime(date) {
  * @returns {Buffer}
  */
 export function createZip(entries, options = {}) {
-  const { time, date } = dosDateTime(options.modified ?? new Date())
+  const { time, date } = dosDateTime(options.modified ?? FIXED_MODIFIED)
 
   const localChunks = []
   const centralChunks = []

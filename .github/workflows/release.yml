@@ -69,9 +69,16 @@ jobs:
 
       - name: 签名插件索引
         env:
-          # 未配置该 Secret 时脚本会告警并跳过签名（宿主会提示校验强度较低）
+          # 未配置该 Secret 时跳过签名（索引按未验签发布）：签名的强约束由
+          # scripts/sign.mjs 自己把关，这里只决定「本次发布要不要求签名」。
           REGISTRY_SIGNING_KEY: ${{ secrets.REGISTRY_SIGNING_KEY }}
-        run: pnpm sign
+        run: |
+          set -euo pipefail
+          if [ -z "${REGISTRY_SIGNING_KEY:-}" ]; then
+            echo "::warning::未配置 REGISTRY_SIGNING_KEY，本次发布跳过签名（索引将按未验签发布）"
+            exit 0
+          fi
+          pnpm sign
 
       - name: 创建 Release 并上传插件包
         env:
@@ -98,4 +105,6 @@ jobs:
             exit 0
           fi
           git commit -m "chore(registry): 更新插件索引 ${TAG}"
-          git push
+          # 用 tag 触发时是 detached HEAD，裸 `git push` 会直接失败；
+          # 显式推到 main 才对两种触发方式都成立（提交在 tag 之上，是快进）。
+          git push origin HEAD:main
