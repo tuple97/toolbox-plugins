@@ -166,7 +166,7 @@ function validateDependencies(manifest, bad) {
   }
 }
 
-const ALLOWED_PERMISSION_FIELDS = new Set(['network', 'storage', 'db', 'events'])
+const ALLOWED_PERMISSION_FIELDS = new Set(['network', 'storage', 'db', 'events', 'server'])
 const DB_CAPS = new Set(['read', 'write'])
 
 function validatePermissions(permissions, bad) {
@@ -219,6 +219,33 @@ function validatePermissions(permissions, bad) {
   }
   if (permissions.events !== undefined && typeof permissions.events !== 'boolean') {
     bad('permissions.events 必须是布尔值')
+  }
+  if (permissions.server !== undefined) {
+    const server = permissions.server
+    if (!server || typeof server !== 'object' || Array.isArray(server)) {
+      bad('permissions.server 必须是对象')
+    }
+    if (server.enabled !== undefined && typeof server.enabled !== 'boolean') {
+      bad('permissions.server.enabled 必须是布尔值')
+    }
+    if (server.ports !== undefined) {
+      if (!Array.isArray(server.ports)) {
+        bad('permissions.server.ports 必须是数组')
+      }
+      const seen = new Set()
+      for (const port of server.ports) {
+        if (!Number.isInteger(port) || port < 1 || port > 65535) {
+          bad(`permissions.server.ports 取值非法（1-65535）: ${JSON.stringify(port)}`)
+        }
+        if (seen.has(port)) {
+          bad(`permissions.server.ports 端口重复: ${port}`)
+        }
+        seen.add(port)
+      }
+      if (server.ports.length > 0 && server.enabled !== true) {
+        bad('permissions.server 声明了端口但没有 enabled: true')
+      }
+    }
   }
   if (permissions.db !== undefined) {
     if (!Array.isArray(permissions.db)) {

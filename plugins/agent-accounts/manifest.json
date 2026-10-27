@@ -1,0 +1,48 @@
+{
+  "manifestVersion": 1,
+  "id": "com.toolbox.agent-accounts",
+  "name": "Agent 账号管理",
+  "version": "1.0.0",
+  "publisher": "toolbox",
+  "description": "多来源 AI 编程账号管理：导入、余量查询、按来源切换、每日签到。",
+  "author": "Toolbox",
+  "license": "MIT",
+  "icon": "chart",
+  "engines": {
+    "toolbox": ">=0.1.1",
+    "pluginApi": "^1.0.0"
+  },
+  "dependencies": {},
+  "permissions": {
+    "storage": true,
+    "events": true,
+    "network": [
+      "www.codebuddy.ai",
+      "www.codebuddy.cn",
+      "copilot.tencent.com"
+    ]
+  },
+  "runtime": {
+    "backend": "js",
+    "entry": "backend/index.js",
+    "frontend": "frontend/index.js",
+    "exports": ["state", "runAction"]
+  },
+  "contributes": {
+    "sidebar": {
+      "groups": [
+        { "id": "agent", "label": "AI 账号", "icon": "chart", "order": 30 }
+      ]
+    },
+    "tools": [
+      {
+        "type": "agent-accounts",
+        "label": "Agent 账号",
+        "icon": "chart",
+        "multi": false,
+        "description": "管理 CodeBuddy / WorkBuddy 账号，查看余量并签到",
+        "group": "agent"
+      }
+    ]
+  }
+}

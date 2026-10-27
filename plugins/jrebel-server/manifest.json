@@ -1,0 +1,44 @@
+{
+  "manifestVersion": 1,
+  "id": "com.toolbox.jrebel-server",
+  "name": "JRebel 激活服务",
+  "version": "1.0.0",
+  "publisher": "toolbox",
+  "description": "本地 JRebel 激活服务器：一键启动、实时请求日志、生成激活地址与随机邮箱。",
+  "author": "Toolbox",
+  "license": "MIT",
+  "icon": "key",
+  "engines": {
+    "toolbox": ">=0.1.1",
+    "pluginApi": "^1.0.0"
+  },
+  "dependencies": {},
+  "permissions": {
+    "storage": true,
+    "server": {
+      "enabled": true
+    }
+  },
+  "runtime": {
+    "backend": "js",
+    "entry": "backend/index.js",
+    "frontend": "frontend/index.js"
+  },
+  "contributes": {
+    "sidebar": {
+      "groups": [
+        { "id": "devtools", "label": "开发工具", "icon": "key", "order": 40 }
+      ]
+    },
+    "tools": [
+      {
+        "type": "jrebel-server",
+        "label": "JRebel 激活服务",
+        "icon": "key",
+        "multi": false,
+        "description": "启动本地 JRebel 激活服务器并生成激活地址",
+        "group": "devtools"
+      }
+    ]
+  }
+}
