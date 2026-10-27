@@ -1,5 +1,285 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-10-27T06:18:15.408Z",
-  "plugins": []
+  "updatedAt": "2026-10-27T06:21:07.585Z",
+  "plugins": [
+    {
+      "id": "com.toolbox.command-executor",
+      "name": "SQL 执行",
+      "version": "1.0.0",
+      "publisher": "toolbox",
+      "description": "自由编写并执行 SQL：多语句批量、逐条运行、取消、格式化与智能补全。",
+      "author": "Toolbox",
+      "icon": "terminal",
+      "homepage": "",
+      "license": "MIT",
+      "sourceDir": "command-executor",
+      "repo": "https://github.com/tuple97/toolbox-plugins/tree/main/plugins/command-executor",
+      "download": "https://github.com/tuple97/toolbox-plugins/releases/download/plugins-20261027-0618/com.toolbox.command-executor-1.0.0.zip",
+      "checksum": "sha256:3082726ee6685a4efe264e65a90dcd3598dbcb76d509815596859a97adecf325",
+      "size": 12599,
+      "official": true,
+      "engines": {
+        "toolbox": ">=0.1.0",
+        "pluginApi": "^1.0.0"
+      },
+      "dependencies": {
+        "com.toolbox.connections": "^1.0.0"
+      },
+      "permissions": {},
+      "runtime": {
+        "backend": "none",
+        "frontend": "frontend/index.js"
+      },
+      "contributes": {
+        "sidebar": {
+          "groups": [
+            {
+              "id": "database",
+              "label": "数据库",
+              "icon": "link",
+              "order": 10
+            }
+          ]
+        },
+        "settings": [
+          {
+            "key": "pageSize",
+            "type": "number",
+            "title": "结果每页条数",
+            "default": "200",
+            "description": "查询结果分页展示时的每页记录数",
+            "panel": "main",
+            "order": 10
+          },
+          {
+            "key": "confirmDangerous",
+            "type": "boolean",
+            "title": "写操作二次确认",
+            "default": "true",
+            "panel": "main",
+            "order": 20
+          }
+        ],
+        "settingsPanels": [
+          {
+            "id": "main",
+            "title": "SQL 执行",
+            "icon": "terminal",
+            "order": 200
+          }
+        ],
+        "tools": [
+          {
+            "type": "command-executor",
+            "label": "SQL 执行",
+            "icon": "terminal",
+            "multi": true,
+            "description": "自由编写并执行 SQL，支持取消与智能补全",
+            "group": "database"
+          }
+        ]
+      }
+    },
+    {
+      "id": "com.toolbox.connections",
+      "name": "连接管理",
+      "version": "1.0.0",
+      "publisher": "toolbox",
+      "description": "维护 MySQL / PostgreSQL 连接配置：SSL、超时、读写与生产标记，并可查看库表元数据。",
+      "author": "Toolbox",
+      "icon": "link",
+      "homepage": "",
+      "license": "MIT",
+      "sourceDir": "connections",
+      "repo": "https://github.com/tuple97/toolbox-plugins/tree/main/plugins/connections",
+      "download": "https://github.com/tuple97/toolbox-plugins/releases/download/plugins-20261027-0618/com.toolbox.connections-1.0.0.zip",
+      "checksum": "sha256:fd0de444b0e6b062fc7dd8d0940deea3618d526f726b5a696b08b174e14d67bf",
+      "size": 8642,
+      "official": true,
+      "engines": {
+        "toolbox": ">=0.1.0",
+        "pluginApi": "^1.0.0"
+      },
+      "dependencies": {},
+      "permissions": {},
+      "runtime": {
+        "backend": "none",
+        "frontend": "frontend/index.js"
+      },
+      "contributes": {
+        "sidebar": {
+          "groups": [
+            {
+              "id": "database",
+              "label": "数据库",
+              "icon": "link",
+              "order": 10
+            }
+          ]
+        },
+        "tools": [
+          {
+            "type": "connections",
+            "label": "连接管理",
+            "icon": "link",
+            "multi": false,
+            "description": "维护数据库连接（单例标签）",
+            "group": "database"
+          }
+        ]
+      }
+    },
+    {
+      "id": "com.toolbox.db-query",
+      "name": "SQL 查询",
+      "version": "1.0.0",
+      "publisher": "toolbox",
+      "description": "按模板执行查询：变量表单、分页结果、字段映射、词典翻译与结果导出。",
+      "author": "Toolbox",
+      "icon": "search",
+      "homepage": "",
+      "license": "MIT",
+      "sourceDir": "db-query",
+      "repo": "https://github.com/tuple97/toolbox-plugins/tree/main/plugins/db-query",
+      "download": "https://github.com/tuple97/toolbox-plugins/releases/download/plugins-20261027-0618/com.toolbox.db-query-1.0.0.zip",
+      "checksum": "sha256:150f2cc8c490c6e149f7c5000282397d853faf311704936e338f9c7c1978813a",
+      "size": 7697,
+      "official": true,
+      "engines": {
+        "toolbox": ">=0.1.0",
+        "pluginApi": "^1.0.0"
+      },
+      "dependencies": {
+        "com.toolbox.connections": "^1.0.0",
+        "com.toolbox.sql-template": "^1.0.0"
+      },
+      "permissions": {},
+      "runtime": {
+        "backend": "none",
+        "frontend": "frontend/index.js"
+      },
+      "contributes": {
+        "sidebar": {
+          "groups": [
+            {
+              "id": "database",
+              "label": "数据库",
+              "icon": "link",
+              "order": 10
+            }
+          ]
+        },
+        "tools": [
+          {
+            "type": "db-query",
+            "label": "SQL 查询",
+            "icon": "search",
+            "multi": true,
+            "description": "按模板执行查询（多例标签，可同时打开多个）",
+            "group": "database"
+          }
+        ]
+      }
+    },
+    {
+      "id": "com.toolbox.dictionary",
+      "name": "词典",
+      "version": "1.0.0",
+      "publisher": "toolbox",
+      "description": "维护本地词典数据，用于查询结果集的值翻译（如状态码、类型枚举）。",
+      "author": "Toolbox",
+      "icon": "book",
+      "homepage": "",
+      "license": "MIT",
+      "sourceDir": "dictionary",
+      "repo": "https://github.com/tuple97/toolbox-plugins/tree/main/plugins/dictionary",
+      "download": "https://github.com/tuple97/toolbox-plugins/releases/download/plugins-20261027-0618/com.toolbox.dictionary-1.0.0.zip",
+      "checksum": "sha256:9e5dedc157d3176d31ea56920d8f173ca431018e134fc2763708b0a77d212bba",
+      "size": 6453,
+      "official": true,
+      "engines": {
+        "toolbox": ">=0.1.0",
+        "pluginApi": "^1.0.0"
+      },
+      "dependencies": {},
+      "permissions": {},
+      "runtime": {
+        "backend": "none",
+        "frontend": "frontend/index.js"
+      },
+      "contributes": {
+        "sidebar": {
+          "groups": [
+            {
+              "id": "records",
+              "label": "本地记录",
+              "icon": "book",
+              "order": 20
+            }
+          ]
+        },
+        "tools": [
+          {
+            "type": "dictionary",
+            "label": "词典",
+            "icon": "book",
+            "multi": false,
+            "description": "维护本地词典数据（单例标签）",
+            "group": "records"
+          }
+        ]
+      }
+    },
+    {
+      "id": "com.toolbox.sql-template",
+      "name": "SQL 模板",
+      "version": "1.0.0",
+      "publisher": "toolbox",
+      "description": "维护 SQL 模板：变量配置、字段映射、导出模板与前置/后置脚本。",
+      "author": "Toolbox",
+      "icon": "document",
+      "homepage": "",
+      "license": "MIT",
+      "sourceDir": "sql-template",
+      "repo": "https://github.com/tuple97/toolbox-plugins/tree/main/plugins/sql-template",
+      "download": "https://github.com/tuple97/toolbox-plugins/releases/download/plugins-20261027-0618/com.toolbox.sql-template-1.0.0.zip",
+      "checksum": "sha256:e1b96f68c59f8269f8c1388f44394bd2deacee7f085f6e0b420550f664bef6c9",
+      "size": 9330,
+      "official": true,
+      "engines": {
+        "toolbox": ">=0.1.0",
+        "pluginApi": "^1.0.0"
+      },
+      "dependencies": {
+        "com.toolbox.connections": "^1.0.0"
+      },
+      "permissions": {},
+      "runtime": {
+        "backend": "none",
+        "frontend": "frontend/index.js"
+      },
+      "contributes": {
+        "sidebar": {
+          "groups": [
+            {
+              "id": "database",
+              "label": "数据库",
+              "icon": "link",
+              "order": 10
+            }
+          ]
+        },
+        "tools": [
+          {
+            "type": "sql-template",
+            "label": "SQL 模板",
+            "icon": "document",
+            "multi": false,
+            "description": "维护 SQL 模板与变量配置（单例标签）",
+            "group": "database"
+          }
+        ]
+      }
+    }
+  ]
 }
