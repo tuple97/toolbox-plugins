@@ -700,7 +700,7 @@ onBeforeUnmount(() => {
               <Combobox v-model="form.database" :options="databaseOptions" :placeholder="databasePlaceholder"
                 search-placeholder="搜索数据库…" clearable class="tpl-mgr__db" />
 
-              <Button variant="secondary" size="sm" class="tpl-mgr__sql-insert" @click="snippetVisible = true">
+              <Button variant="secondary" class="tpl-mgr__sql-insert" @click="snippetVisible = true">
                 <Icon name="plus" />
                 <span>插入模板</span>
               </Button>
@@ -709,7 +709,7 @@ onBeforeUnmount(() => {
           <!-- 补全上下文：所属连接的表/列 + 本模板变量（见 templateCompletionContext） -->
           <CodeEditor ref="sqlEditorRef" v-model="form.sqlText" language="sql" completion-mode="sql-template"
             height="100%" :db-type="templateConnectionDbType" :completion-context="templateCompletionContext"
-            @change="scheduleParse" />
+            show-format-button @change="scheduleParse" />
         </div>
 
         <!-- 下方：配置 Tab 区 -->
