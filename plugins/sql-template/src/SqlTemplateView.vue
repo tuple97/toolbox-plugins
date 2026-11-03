@@ -49,13 +49,7 @@ import type {
   VariableConfig,
 } from '@/types'
 
-/**
- * SQL 模板管理（单例标签页）。
- *
- * 与其他标签的关系：模板增删改后广播 `templates:changed`，
- * SQL 查询标签页据此刷新模板下拉与当前模板配置
- * （变量表单由模板驱动，模板改了配置也变了）。
- */
+/** SQL 模板管理（单例标签页） */
 
 const emit = defineEmits<{
   /** 首次加载完成（父级据此关闭 loading 遮罩） */
@@ -109,12 +103,7 @@ const detectedVariables = ref<string[]>([])
 /** 配置区当前页签，默认落在变量配置 */
 const configTab = ref('variables')
 
-/**
- * 配置区页签。
- *
- * `lazy`：未激活不挂载 —— 避免隐藏的编辑器 / 面板在每次切换模板时被无谓更新
- * （两个脚本编辑器都是 CodeMirror 实例，代价不小）。
- */
+/** 配置区页签 */
 const CONFIG_TABS = [
   { value: 'variables', label: '变量配置', lazy: true },
   { value: 'fields', label: '字段映射', lazy: true },
@@ -188,11 +177,7 @@ function parseJSON<T>(raw: string, fallback: T): T {
   }
 }
 
-/**
- * 复用与上一份配置内容相同（按 column 匹配）的映射对象。
- * 引用不变配合 FieldMappingPanel 的 v-memo，可以让未变化的行跳过 patch，
- * 避免映射条目多时（如 72 列结果集）每次选模板都全量重渲染。
- */
+/** 复用与上一份配置内容相同（按 column 匹配）的映射对象 */
 function reuseUnchanged(next: FieldMapping[]): FieldMapping[] {
   const prev = new Map(fieldMappings.value.map(m => [m.column, m]))
   return next.map((item) => {
@@ -234,12 +219,7 @@ async function refreshVariables() {
   }
 }
 
-/**
- * 校验模板语法，把错误标在编辑器上（底部红色波浪线）。
- *
- * 刻意**不弹提示框**：编辑过程中半成品语法很常见，弹窗只会打断输入，
- * 而且「模板语法错误」这种文案定位不到位置，不如直接在出错的那一行划线。
- */
+/** 校验模板语法，把错误标在编辑器上（底部红色波浪线） */
 async function checkTemplate() {
   const text = form.sqlText
   try {
@@ -322,10 +302,7 @@ async function handleSave() {
     return
   }
 
-  /*
-   * 保存前校验模板语法：失败时在编辑器上标出出错位置并滚动过去，不弹提示框
-   * （校验请求本身失败时放行，避免因为一次请求异常就保存不了）。
-   */
+  /* 保存前校验模板语法：失败时在编辑器上标出出错位置并滚动过去，不弹提示框 （校验请求本身失败时放行 */
   try {
     const check = await validateTemplate(form.sqlText)
     if (!check.valid) {
@@ -406,10 +383,7 @@ async function handleSave() {
 
 /** 删除模板 */
 async function handleDelete(item: TemplateListItem) {
-  /*
-   * 取消是正常分支。旧写法靠 `catch (e) { if (e !== 'cancel') ... }` ——
-   * 用一个魔法字符串区分「用户取消」和「真出错」，多一个字少一个字都会吞掉真错误。
-   */
+  /* 取消是正常分支 */
   const confirmed = await askConfirm({
     message: `确定删除模板「${item.name}」吗？引用它的标签页将无法再执行。`,
     title: '删除模板',
@@ -438,16 +412,7 @@ async function handleDelete(item: TemplateListItem) {
 
 // ------------------------------------------------------------ 编辑器补全上下文
 
-/**
- * 模板 SQL 编辑器的补全上下文（每页定向扩展）。
- *
- * 两样东西都是「按需实时求值」：
- *  - `sql`：模板所属连接的表 / 列元数据（连接从模板配置来，方言从连接对象取，
- *    **库取上面那个库下拉的生效库**：所选库优先、未选回落连接默认库）；
- *  - `templateVariables`：本模板的变量配置（含值类型，供参数位与点号取值使用）。
- *
- * 因为写成了函数，改连接、改库、改变量配置后补全立即跟着变，不需要重建编辑器。
- */
+/** 模板 SQL 编辑器的补全上下文（每页定向扩展） */
 function templateCompletionContext(): Partial<CompletionRuntime> {
   return {
     sql: completionSqlContext(),
@@ -455,12 +420,7 @@ function templateCompletionContext(): Partial<CompletionRuntime> {
   }
 }
 
-/**
- * 补全用的 SQL 上下文（连接 + 生效库 + 方言）；未绑定连接时为 undefined。
- *
- * 模板编辑器与导出模板编辑器共用它 —— 两处的「当前连接 / 当前库」本就是同一个，
- * 差别只在模板编辑器还要额外给模板变量候选（导出模板里的 `{{ }}` 是结果列）。
- */
+/** 补全用的 SQL 上下文（连接 + 生效库 + 方言）；未绑定连接时为 undefined */
 function completionSqlContext() {
   const conn = templateConnection.value
   return conn
@@ -483,24 +443,9 @@ const templateConnectionDbType = computed(() => templateConnection.value?.dbType
 
 // ------------------------------------------------------------ 补全用的「当前库」
 
-/**
- * 模板自带的库（`form.database`，随模板保存）。
- *
- * 为什么需要它：表名候选只按「当前库」去查（`metadata.tables(connId, database)`），
- * 编辑器原先的当前库取的是**连接配置里的默认库** —— 连接没填默认库时，
- * 后端会拿空库名去过滤 `table_schema`（MySQL 下查不到任何表），
- * 于是 `SELECT * FROM |` 只有库名候选、没有表名。这里补上库选择，
- * 语义与 SQL 查询页 / 命令执行器完全一致：**空 = 用连接默认库**。
- *
- * 存进模板后，SQL 查询页选到这个模板时会拿它作为默认选中的库（见 DbQuery）。
- */
+/** 模板自带的库（`form.database`，随模板保存） */
 
-/**
- * 库列表：直接读共享的元数据缓存（与连接管理页 / 查询页同一份）。
- *
- * 不自己发请求的好处：缓存命中时下拉立刻有值，也不会与补全各自拉一遍。
- * 拉取时机见下面 connId 的 watcher。
- */
+/** 库列表：直接读共享的元数据缓存（与连接管理页 / 查询页同一份） */
 const databases = computed<DatabaseInfo[]>(() => {
   const conn = templateConnection.value
   return conn ? metadataStore.databaseInfos[conn.id] ?? [] : []
@@ -532,20 +477,12 @@ const effectiveDatabase = computed(
   () => form.database || templateConnection.value?.database || '',
 )
 
-/**
- * 用户换连接：库是跟着连接走的，换连接即清掉原来那个连接上的库名，
- * 否则补全与元数据预热会去查一个在新连接上并不存在的库。
- *
- * 只在**用户操作**时清（v-model 的 update 事件），载入模板时的程序化赋值不走这里。
- */
+/** 用户换连接：库是跟着连接走的，换连接即清掉原来那个连接上的库名， 否则补全与元数据预热会去查一个在新连接上并不存在的库 */
 function handleConnectionChange() {
   form.database = ''
 }
 
-/**
- * 拉一次库列表：它同时是补全「手写 `库.`」的前提（resolveAfterDot 要按库名匹配），
- * 所以连上就拉，而不是等用户敲出来才发现缓存是空的。
- */
+/** 拉一次库列表：它同时是补全「手写 `库.`」的前提（resolveAfterDot 要按库名匹配）， 所以连上就拉 */
 watch(() => form.connId, (id) => {
   if (!id) {
     return
@@ -584,10 +521,7 @@ const sqlEditorRef = ref<InstanceType<typeof CodeEditor> | null>(null)
 /** 片段选择弹窗 */
 const snippetVisible = ref(false)
 
-/**
- * 把片段插入到光标处。
- * 插入后编辑器会触发 change，由防抖逻辑自动重新解析变量。
- */
+/** 把片段插入到光标处 */
 function insertSnippet(snippet: SqlSnippet) {
   if (!sqlEditorRef.value?.insertTemplateText(snippet.code)) {
     notify.warning('编辑器尚未就绪，请稍后再试')
@@ -618,13 +552,7 @@ onMounted(async () => {
   }
 })
 
-/**
- * 连接管理页改动连接后刷新「所属连接」下拉。
- *
- * 本页是常驻单例标签页（切换时只切显隐），只在 onMounted 拉一次连接列表；
- * 不监听的话改了连接名称 / 颜色 / 默认库之后，这里与模板编辑器的补全上下文
- * （方言、库名都取自连接对象）都还停在旧数据上。
- */
+/** 连接管理页改动连接后刷新「所属连接」下拉 */
 const offConnectionsChanged = EventsOn('connections:changed', async () => {
   await loadConnections()
 })
@@ -791,7 +719,7 @@ onBeforeUnmount(() => {
   flex-direction: column;
   flex: 0 0 260px;
   min-height: 0;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   overflow: hidden;
 }
@@ -802,7 +730,7 @@ onBeforeUnmount(() => {
   justify-content: space-between;
   flex: 0 0 auto;
   padding: 8px 12px;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--color-border);
   font-size: var(--app-font-size);
   font-weight: 600;
 }
@@ -825,12 +753,12 @@ onBeforeUnmount(() => {
 }
 
 .tpl-mgr__item:hover {
-  background: var(--hover-bg);
+  background: var(--color-hover);
 }
 
 .tpl-mgr__item.is-active {
   /* 选中只用底色表示，不加左侧竖条 */
-  background: var(--active-bg);
+  background: var(--color-active);
 }
 
 .tpl-mgr__item-main {
@@ -857,7 +785,7 @@ onBeforeUnmount(() => {
 .tpl-mgr__item-sql {
   display: block;
   margin-top: 3px;
-  color: var(--text-muted);
+  color: var(--color-muted);
   font-family: var(--font-mono);
   font-size: var(--app-font-size-xs);
   overflow: hidden;
@@ -868,7 +796,7 @@ onBeforeUnmount(() => {
 .tpl-mgr__item-del {
   flex: 0 0 auto;
   opacity: 0;
-  color: var(--text-muted);
+  color: var(--color-muted);
 }
 
 .tpl-mgr__item:hover .tpl-mgr__item-del {
@@ -876,12 +804,12 @@ onBeforeUnmount(() => {
 }
 
 .tpl-mgr__item-del:hover {
-  color: var(--danger-color);
+  color: var(--color-danger);
 }
 
 .tpl-mgr__empty {
   padding: 20px 10px;
-  color: var(--text-muted);
+  color: var(--color-muted);
   font-size: var(--app-font-size-sm);
   text-align: center;
 }
@@ -927,7 +855,7 @@ onBeforeUnmount(() => {
   gap: 6px;
   flex: 0 0 auto;
   padding: 0 2px;
-  color: var(--text-muted);
+  color: var(--color-muted);
   font-size: var(--app-font-size-sm);
   white-space: nowrap;
   cursor: pointer;
@@ -939,7 +867,7 @@ onBeforeUnmount(() => {
   flex-direction: column;
   flex: 0 0 40%;
   min-height: 0;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   overflow: hidden;
 }
@@ -951,13 +879,13 @@ onBeforeUnmount(() => {
   flex-wrap: wrap;
   gap: 10px;
   padding: 6px 12px;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--color-border);
   font-size: var(--app-font-size-sm);
   font-weight: 600;
 }
 
 .tpl-mgr__sql-label small {
-  color: var(--text-muted);
+  color: var(--color-muted);
   font-size: var(--app-font-size-xs);
   font-weight: 400;
 }
@@ -979,8 +907,8 @@ onBeforeUnmount(() => {
 .tpl-mgr__hint code {
   padding: 1px 4px;
   border-radius: 4px;
-  background: var(--active-bg);
-  color: var(--brand-color);
+  background: var(--color-active);
+  color: var(--color-brand);
   font-family: var(--font-mono);
 }
 
@@ -999,12 +927,9 @@ onBeforeUnmount(() => {
   flex-direction: column;
   flex: 1 1 0%;
   min-height: 0;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  /*
-   * 不加底色：与左侧模板列表、上方 SQL 区两张卡片保持一致（只描边、透出应用背景）。
-   * 同一页只有这一块是另一种底色，看着就像颜色不对。
-   */
+  /* 不加底色：与左侧模板列表、上方 SQL 区两张卡片保持一致（只描边、透出应用背景） */
   overflow: hidden;
 }
 
@@ -1014,7 +939,7 @@ onBeforeUnmount(() => {
   gap: 8px;
   flex: 0 0 auto;
   padding: 6px 12px;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--color-border);
   font-size: var(--app-font-size-sm);
   font-weight: 600;
 }
@@ -1027,12 +952,7 @@ onBeforeUnmount(() => {
   min-height: 0;
 }
 
-/*
- * 页签栏与内容区的内边距按全局规范（与连接管理页同一套数值）。
- *
- * 内边距必须加在页签栏 / 内容区上，而不是外层容器：加在外层会让页签栏
- * 整体收窄，下划线左右各缩进一截，看着不像全局的页签。
- */
+/* 页签栏与内容区的内边距按全局规范（与连接管理页同一套数值） */
 .tpl-mgr__tabs :deep(.app-tabgroup__tabs) {
   flex: 0 0 auto;
   padding: 6px 12px 0;
@@ -1047,7 +967,7 @@ onBeforeUnmount(() => {
 
 .tpl-mgr__hint {
   margin: 0 0 8px;
-  color: var(--text-muted);
+  color: var(--color-muted);
   font-size: var(--app-font-size-xs);
 }
 </style>

@@ -2,9 +2,9 @@
   "manifestVersion": 1,
   "id": "com.toolbox.agent-accounts",
   "name": "Agent 账号管理",
-  "version": "1.0.0",
+  "version": "1.3.0",
   "publisher": "toolbox",
-  "description": "多来源 AI 编程账号管理：导入、余量查询、按来源切换、每日签到。",
+  "description": "多来源 AI 编程账号管理：导入、余量查询、按来源切换、任意账号单独签到与一键批量签到。",
   "author": "Toolbox",
   "license": "MIT",
   "icon": "chart",
@@ -16,6 +16,10 @@
   "permissions": {
     "storage": true,
     "events": true,
+    "files": [
+      "%APPDATA%\\JetBrains",
+      "%LOCALAPPDATA%\\JetBrains"
+    ],
     "network": [
       "www.codebuddy.ai",
       "www.codebuddy.cn",

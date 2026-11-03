@@ -1,10 +1,5 @@
 <script setup lang="ts">
-/**
- * JRebel 激活服务面板。
- *
- * 服务器本身跑在插件后端（toolbox.server，只绑 127.0.0.1），
- * 这里只负责：启停、改参数、看日志、复制激活地址与邮箱。
- */
+/** JRebel 激活服务面板 */
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import Button from '@/components/ui/Button.vue'
 import Field from '@/components/ui/Field.vue'
@@ -59,11 +54,23 @@ const activationUrl = computed(() => snapshot.value?.activationUrl ?? '')
 const email = computed(() => snapshot.value?.config.email ?? '')
 const uuid = computed(() => snapshot.value?.uuid ?? '')
 
+/** 表单字段是否已用后端值初始化过 */
+let formInitialized = false
+
+/** 把后端配置回填到表单（只在首次载入与保存成功后调用） */
+function fillForm(config: ServerConfig): void {
+  port.value = config.port
+  offlineDays.value = config.offlineDays
+  autoStart.value = config.autoStart
+}
+
 function applySnapshot(next: ServerSnapshot): void {
   snapshot.value = next
-  port.value = next.config.port
-  offlineDays.value = next.config.offlineDays
-  autoStart.value = next.config.autoStart
+  /* 表单只初始化一次 */
+  if (!formInitialized) {
+    fillForm(next.config)
+    formInitialized = true
+  }
 }
 
 async function refresh(): Promise<void> {
@@ -105,6 +112,22 @@ async function toggleServer(): Promise<void> {
   }
 }
 
+/** 切换「随应用启动」 */
+async function toggleAutoStart(value: boolean): Promise<void> {
+  autoStart.value = value
+  try {
+    const next = await invoke<ServerSnapshot>('setAutoStart', { autoStart: value })
+    snapshot.value = next
+    autoStart.value = next.config.autoStart
+    notify.success(next.config.autoStart ? '已设为随应用启动' : '已关闭随应用启动')
+  }
+  catch (e) {
+    // 失败就回滚，别让界面停在一个没落库的状态上
+    autoStart.value = !value
+    notify.error(e instanceof Error ? e.message : String(e))
+  }
+}
+
 async function saveSettings(): Promise<void> {
   busy.value = true
   try {
@@ -114,6 +137,8 @@ async function saveSettings(): Promise<void> {
       autoStart: autoStart.value,
     })
     applySnapshot(next)
+    // 保存成功后按后端规范化结果回填（端口可能被夹到合法区间）
+    fillForm(next.config)
     notify.success('参数已保存')
   }
   catch (e) {
@@ -263,7 +288,7 @@ onBeforeUnmount(() => {
 
         <Field label="随应用启动">
           <div class="jrebel__row">
-            <Switch v-model="autoStart" />
+            <Switch :model-value="autoStart" @update:model-value="toggleAutoStart" />
             <span class="jrebel__hint is-inline">应用启动时自动拉起激活服务</span>
           </div>
         </Field>
@@ -318,7 +343,7 @@ onBeforeUnmount(() => {
   justify-content: space-between;
   gap: 12px;
   padding: 12px 18px;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .jrebel__title {
@@ -345,7 +370,7 @@ onBeforeUnmount(() => {
   gap: 2px;
   min-width: 0;
   padding: 12px 14px;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--color-border);
   border-radius: 8px;
   background: var(--panel-bg, transparent);
 }
@@ -362,7 +387,7 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 6px;
   margin: 0 0 6px;
-  color: var(--text-muted);
+  color: var(--color-muted);
   font-size: var(--app-font-size-sm);
   font-weight: 600;
 }
@@ -390,7 +415,7 @@ onBeforeUnmount(() => {
 
 .jrebel__hint {
   margin: 4px 0 0;
-  color: var(--text-muted);
+  color: var(--color-muted);
   font-size: var(--app-font-size-xs);
   line-height: 1.6;
 }
@@ -406,7 +431,7 @@ onBeforeUnmount(() => {
 }
 
 .jrebel__log-count {
-  color: var(--text-muted);
+  color: var(--color-muted);
   font-size: var(--app-font-size-2xs);
 }
 
@@ -430,22 +455,27 @@ onBeforeUnmount(() => {
 }
 
 .jrebel__log:nth-child(even) {
-  background: color-mix(in srgb, var(--hover-bg) 60%, transparent);
+  background: color-mix(in srgb, var(--color-hover) 60%, transparent);
+}
+
+/* 日志是逐行扫读的：指到哪一行要能立刻看出来 */
+.jrebel__log:hover {
+  background: var(--color-hover);
 }
 
 .jrebel__log.is-error {
-  color: var(--danger-color);
+  color: var(--color-danger);
 }
 
 .jrebel__log-time,
 .jrebel__log-duration {
   flex: 0 0 auto;
-  color: var(--text-muted);
+  color: var(--color-muted);
 }
 
 .jrebel__log-method {
   flex: 0 0 3.2rem;
-  color: var(--text-muted);
+  color: var(--color-muted);
 }
 
 .jrebel__log-path {
@@ -463,7 +493,7 @@ onBeforeUnmount(() => {
 
 .jrebel__empty {
   margin: 8px 0;
-  color: var(--text-muted);
+  color: var(--color-muted);
   font-size: var(--app-font-size-sm);
 }
 </style>

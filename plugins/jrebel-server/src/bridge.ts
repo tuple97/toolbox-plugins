@@ -1,9 +1,4 @@
-/**
- * 视图 → 插件上下文的桥。
- *
- * 工具视图是由宿主按组件渲染的，拿不到 activate(api) 的上下文，
- * 这里由 index.ts 在激活时注入一次，视图通过它调用自己的后端 handler。
- */
+/** 视图 → 插件上下文的桥 */
 import type { PluginFrontendApi } from '@toolbox/plugin-sdk'
 
 let current: PluginFrontendApi | null = null

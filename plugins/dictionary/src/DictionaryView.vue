@@ -377,11 +377,11 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleSaveShortcut))
   width: 3px;
   height: 15px;
   border-radius: 2px;
-  background: var(--brand-color);
+  background: var(--color-brand);
 }
 
 .dict-view__title small {
-  color: var(--text-muted);
+  color: var(--color-muted);
   font-size: var(--app-font-size-xs);
   font-weight: 400;
 }
@@ -399,7 +399,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleSaveShortcut))
   flex-direction: column;
   flex: 0 0 240px;
   min-height: 0;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   overflow: hidden;
 }
@@ -422,11 +422,11 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleSaveShortcut))
 }
 
 .dict-view__item:hover {
-  background: var(--hover-bg);
+  background: var(--color-hover);
 }
 
 .dict-view__item.is-active {
-  background: var(--active-bg);
+  background: var(--color-active);
 }
 
 .dict-view__item-main {
@@ -445,7 +445,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleSaveShortcut))
 .dict-view__item-desc {
   display: block;
   margin-top: 2px;
-  color: var(--text-muted);
+  color: var(--color-muted);
   font-size: var(--app-font-size-xs);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -455,7 +455,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleSaveShortcut))
 .dict-view__item-edit,
 .dict-view__item-del {
   flex: 0 0 auto;
-  color: var(--text-muted);
+  color: var(--color-muted);
   opacity: 0;
   transition: opacity 0.15s ease, color 0.15s ease;
 }
@@ -466,16 +466,16 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleSaveShortcut))
 }
 
 .dict-view__item-edit:hover {
-  color: var(--brand-color);
+  color: var(--color-brand);
 }
 
 .dict-view__item-del:hover {
-  color: var(--danger-color);
+  color: var(--color-danger);
 }
 
 .dict-view__empty {
   padding: 20px 10px;
-  color: var(--text-muted);
+  color: var(--color-muted);
   font-size: var(--app-font-size-sm);
   text-align: center;
 }
@@ -486,7 +486,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleSaveShortcut))
   flex: 1;
   min-width: 0;
   min-height: 0;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   overflow: hidden;
 }
@@ -497,7 +497,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleSaveShortcut))
   gap: 8px;
   flex: 0 0 auto;
   padding: 8px 12px;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--color-border);
   font-size: var(--app-font-size);
   font-weight: 600;
 }
@@ -509,7 +509,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleSaveShortcut))
 }
 
 .dict-view__detail-head small {
-  color: var(--text-muted);
+  color: var(--color-muted);
   font-size: var(--app-font-size-xs);
   font-weight: 400;
 }

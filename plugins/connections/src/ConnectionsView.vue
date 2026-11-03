@@ -27,10 +27,10 @@ import { useTabStore } from '@/stores/tabStore'
 import { matchesShortcut, shortcutOf } from '@/utils/shortcuts'
 import type { ConnectionEnv, DBConnection } from '@/types'
 
-/** 连接管理（单例标签页）：左列表 + 右详情（基本 / 高级 / SSL）；连接变更后广播 connections:changed */
+/** 连接管理（单例标签页）：左列表 + 右详情，变更后广播 connections:changed */
 
 const emit = defineEmits<{
-  /** 首次加载完成（父级据此关闭 loading 遮罩） */
+  /** 首次加载完成 */
   (e: 'ready'): void
 }>()
 const configStore = useConfigStore()
@@ -48,7 +48,7 @@ const DEFAULT_PORTS: Record<string, number> = {
   postgres: 5432,
 }
 
-/** SSL 模式（统一取值，后端按方言映射：MySQL → tls，PostgreSQL → sslmode） */
+/** SSL 模式（后端按方言映射） */
 const SSL_MODES = [
   { value: 'disable', label: 'disable（不加密）' },
   { value: 'prefer', label: 'prefer（优先加密）' },
@@ -69,7 +69,7 @@ const SSL_HINTS: Record<string, string> = {
 /** 详情页签 */
 const activeTab = ref('basic')
 
-/** 详情页签定义（SSL 页签的「已启用」圆点走 #tab-ssl 插槽） */
+/** 详情页签定义 */
 const CONN_TABS = [
   { value: 'basic', label: '基本' },
   { value: 'advanced', label: '高级' },
@@ -88,14 +88,14 @@ const saving = ref(false)
 const editingId = ref(0)
 const form = reactive<DBConnection>(createEmptyForm())
 
-/** 元数据缓存（与查询页补全共用同一份） */
+/** 元数据缓存（与查询页补全共用） */
 const metadataStore = useMetadataStore()
 /** 元数据查看弹窗 */
 const metadataVisible = ref(false)
 /** 元数据刷新中 */
 const metadataRefreshing = ref(false)
 
-/** 当前编辑的已保存连接；新建（未保存）时为 null */
+/** 当前编辑的已保存连接；新建时为 null */
 const savedConnection = computed(
   () => connections.value.find(item => item.id === editingId.value) ?? null,
 )
@@ -149,7 +149,7 @@ function notifyChanged() {
   void Events.Emit('connections:changed')
 }
 
-/** 当前连接的环境标识；本地 / 测试 / 生产互斥，空串表示未标记 */
+/** 当前连接的环境标识；空串表示未标记 */
 const envMark = computed<ConnectionEnv>(() => {
   if (form.isProduction) {
     return 'production'
@@ -163,7 +163,7 @@ const envMark = computed<ConnectionEnv>(() => {
   return ''
 })
 
-/** 切换环境标识：勾选一个清掉其它两个，再点已勾选的取消标记 */
+/** 切换环境标识：勾选一个即清掉其它 */
 function toggleEnv(env: Exclude<ConnectionEnv, ''>, checked: boolean) {
   const next = checked ? env : ''
   form.isLocal = next === 'local'
@@ -185,11 +185,11 @@ function startCreate() {
 
 /** 把某个连接载入右侧详情 */
 function selectConnection(conn: DBConnection) {
-  // 老数据可能缺后加的列，这里补一层默认值
+  // 老数据可能缺后加的列，补一层默认值
   Object.assign(form, {
     ...createEmptyForm(),
     ...conn,
-    // 已保存的密码不回填：留空即表示不修改
+    // 已保存的密码不回填，留空即不修改
     password: '',
     connectTimeoutSecs: conn.connectTimeoutSecs || 10,
     queryTimeoutSecs: conn.queryTimeoutSecs || 60,
@@ -200,7 +200,7 @@ function selectConnection(conn: DBConnection) {
   activeTab.value = 'basic'
 }
 
-/** 构造提交给后端的表单副本（密码留空表示不修改，取回已存密文补上） */
+/** 构造提交给后端的表单副本（密码留空则取回已存密码） */
 async function buildPayload(): Promise<DBConnection> {
   const payload = { ...form } as DBConnection
   if (!payload.password && editingId.value) {
@@ -209,7 +209,7 @@ async function buildPayload(): Promise<DBConnection> {
   return payload
 }
 
-/** 查看 / 刷新元数据前的校验：必须已保存连接 */
+/** 查看 / 刷新元数据前校验：必须已保存连接 */
 function requireSavedConnection(): DBConnection | null {
   const conn = savedConnection.value
   if (!conn) {
@@ -225,7 +225,7 @@ function handleViewMetadata() {
   }
 }
 
-/** 刷新该连接的元数据：清缓存后重新拉取库列表与当前库的表列表 */
+/** 刷新该连接的元数据：清缓存后重拉库列表与表列表 */
 async function handleRefreshMetadata() {
   const conn = requireSavedConnection()
   if (!conn) {
@@ -233,7 +233,7 @@ async function handleRefreshMetadata() {
   }
   metadataRefreshing.value = true
   try {
-    // 库以表单里填写的为准（未填时用连接自身配置的库）
+    // 库以表单里填写的为准，未填时用连接自身配置
     await metadataStore.refreshConnection(conn.id, form.database || conn.database || '')
     notify.success('元数据已刷新')
   }
@@ -262,12 +262,12 @@ async function handleTest() {
 
 /** 保存连接 */
 async function handleSave() {
-  // 保存中忽略重复触发（快捷键连按 / 连点按钮）
+  // 保存中忽略重复触发
   if (saving.value) {
     return
   }
   if (!form.name.trim()) {
-    // 名称在「基本」页：校验失败先切过去，否则用户在别的页签上看不到要填什么
+    // 名称在「基本」页，校验失败先切过去
     activeTab.value = 'basic'
     notify.warning('请输入连接名称')
     return
@@ -277,7 +277,7 @@ async function handleSave() {
     const id = await persistConnection(await buildPayload())
     notify.success('保存成功')
     await load()
-    // 新建成功后停在刚保存的这条上（editingId 从 0 变成新 ID）
+    // 新建成功后停在刚保存的这条上
     const saved = connections.value.find(item => item.id === id)
     if (saved) {
       selectConnection(saved)
@@ -294,7 +294,7 @@ async function handleSave() {
 
 /** 删除连接 */
 async function handleDelete(conn: DBConnection) {
-  // 取消是正常分支，直接走下面的判断
+  // 取消是正常分支
   const confirmed = await askConfirm({
     message: `确定删除连接「${conn.name}」吗？其下的 SQL 模板也会一并删除。`,
     title: '删除连接',
@@ -309,7 +309,7 @@ async function handleDelete(conn: DBConnection) {
     await removeConnection(conn.id)
     notify.success('已删除')
     await load()
-    // 删掉的正是当前编辑项时，回落到列表首项（没有就进入新建）
+    // 删掉的正是当前编辑项时，回落到列表首项或新建
     if (editingId.value === conn.id) {
       const next = connections.value[0]
       if (next) {
@@ -326,9 +326,9 @@ async function handleDelete(conn: DBConnection) {
   }
 }
 
-/** Ctrl/Cmd + S 保存当前连接（顺手拦掉浏览器的「保存网页」） */
+/** Ctrl/Cmd + S 保存当前连接 */
 function handleSaveShortcut(event: KeyboardEvent) {
-  // 单例页面会用 v-show 常驻；只有当前可见页面可以处理自己的快捷键。
+  // 单例页面用 v-show 常驻，只有可见页面处理自己的快捷键
   if (tabStore.activeSingleton !== 'connections') {
     return
   }
@@ -356,7 +356,7 @@ onMounted(async () => {
     }
   }
   finally {
-    // 失败也要上报，否则遮罩会一直盖住界面
+    // 失败也要上报，否则遮罩不消失
     emit('ready')
   }
 })
@@ -565,7 +565,7 @@ onBeforeUnmount(() => {
               </Field>
             </template>
 
-            <!-- SSL 页签上的小圆点表示已启用（只影响页签外观，不影响无障碍名称） -->
+            <!-- SSL 页签的小圆点表示已启用 -->
             <template #tab-ssl>
               <span class="conn-form__tab">
                 SSL
@@ -609,7 +609,7 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-/* 标签页内：内容铺满可用区域，各分区内部自行滚动 */
+/* 标签页内：内容铺满可用区域 */
 .conn-workspace {
   display: flex;
   height: 100%;
@@ -628,13 +628,13 @@ onBeforeUnmount(() => {
   overflow: hidden;
 }
 
-/* 左侧列表：固定宽度、占满高度，条目超出自带滚动条 */
+/* 左侧列表：固定宽度，条目超出自带滚动条 */
 .conn-mgr__list {
   display: flex;
   flex-direction: column;
   flex: 0 0 260px;
   min-height: 0;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   overflow: hidden;
 }
@@ -645,7 +645,7 @@ onBeforeUnmount(() => {
   justify-content: space-between;
   flex: 0 0 auto;
   padding: 8px 12px;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--color-border);
   font-size: var(--app-font-size);
   font-weight: 600;
 }
@@ -668,11 +668,11 @@ onBeforeUnmount(() => {
 }
 
 .conn-mgr__item:hover {
-  background: var(--hover-bg);
+  background: var(--color-hover);
 }
 
 .conn-mgr__item.is-active {
-  background: var(--active-bg);
+  background: var(--color-active);
 }
 
 .conn-mgr__item-main {
@@ -697,7 +697,7 @@ onBeforeUnmount(() => {
 .conn-mgr__item-addr {
   display: block;
   margin-top: 3px;
-  color: var(--text-muted);
+  color: var(--color-muted);
   font-family: var(--font-mono);
   font-size: var(--app-font-size-xs);
   overflow: hidden;
@@ -705,7 +705,7 @@ onBeforeUnmount(() => {
   white-space: nowrap;
 }
 
-/* 颜色点：环境标记，与表单里的颜色选择器同一取值 */
+/* 颜色点：环境标记 */
 .conn-mgr__dot {
   width: 8px;
   height: 8px;
@@ -716,7 +716,7 @@ onBeforeUnmount(() => {
 .conn-mgr__item-del {
   flex: 0 0 auto;
   opacity: 0;
-  color: var(--text-muted);
+  color: var(--color-muted);
 }
 
 .conn-mgr__item:hover .conn-mgr__item-del {
@@ -724,17 +724,17 @@ onBeforeUnmount(() => {
 }
 
 .conn-mgr__item-del:hover {
-  color: var(--danger-color);
+  color: var(--color-danger);
 }
 
 .conn-mgr__empty {
   padding: 20px 10px;
-  color: var(--text-muted);
+  color: var(--color-muted);
   font-size: var(--app-font-size-sm);
   text-align: center;
 }
 
-/* 右侧详情：头部固定，页签区吃掉剩余空间 */
+/* 右侧详情：头部固定，页签区占剩余空间 */
 .conn-mgr__editor {
   display: flex;
   flex-direction: column;
@@ -758,7 +758,7 @@ onBeforeUnmount(() => {
 }
 
 .conn-mgr__editor-note {
-  color: var(--text-muted);
+  color: var(--color-muted);
   font-size: var(--app-font-size-xs);
 }
 
@@ -770,11 +770,7 @@ onBeforeUnmount(() => {
   margin-left: auto;
 }
 
-/*
- * 编辑器操作行：按钮间距只由 gap 决定。
- * （旧样式里那条 `.el-button + .el-button { margin-left: 0 }` 是在抵消
- * Element Plus 给相邻按钮加的 12px，随组件库一起去掉了。）
- */
+/* 编辑器操作行：按钮间距只由 gap 决定 */
 
 .conn-mgr__form {
   display: flex;
@@ -783,13 +779,13 @@ onBeforeUnmount(() => {
   min-height: 0;
 }
 
-/* 页签区：外框 + 表头固定 + 内容区内部滚动 */
+/* 页签区：外框 + 表头固定 + 内容区滚动 */
 .conn-mgr__tabs {
   display: flex;
   flex-direction: column;
   flex: 1;
   min-height: 0;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   overflow: hidden;
 }
@@ -806,7 +802,7 @@ onBeforeUnmount(() => {
   padding: 14px 16px;
 }
 
-/* 标记行：颜色选择器与两个开关放在一行 */
+/* 标记行：颜色选择器与开关放一行 */
 .conn-form__markers {
   display: flex;
   align-items: center;
@@ -815,7 +811,7 @@ onBeforeUnmount(() => {
 
 .conn-form__tip {
   margin: -6px 0 10px 100px;
-  color: var(--text-muted);
+  color: var(--color-muted);
   font-size: var(--app-font-size-xs);
 }
 
@@ -836,12 +832,12 @@ onBeforeUnmount(() => {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--success-color);
+  background: var(--color-success);
 }
 
 .conn-form__unit {
   margin-left: 8px;
-  color: var(--text-muted);
+  color: var(--color-muted);
   font-size: var(--app-font-size-xs);
 }
 </style>

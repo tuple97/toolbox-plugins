@@ -1,10 +1,4 @@
-/**
- * SQL 查询插件（多例工具）。
- *
- * 多例工具通过 props.tabId / props.initialPayload 拿到自己的实例上下文：
- * 每个标签可以引用不同模板、使用不同连接，状态经 emit('change', tabId, payload)
- * 交回宿主持久化。契约与内置多例工具完全一致。
- */
+/** SQL 查询插件（多例工具） */
 
 import type { PluginFrontendApi } from '@toolbox/plugin-sdk'
 import DbQuery from './DbQuery.vue'

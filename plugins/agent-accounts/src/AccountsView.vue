@@ -1,19 +1,17 @@
 <script setup lang="ts">
-/**
- * Agent 账号面板。
- *
- * 账号数据、余量查询、签到都在插件后端（backend/index.js），
- * 这里只负责按来源分栏展示、触发动作与导入。
- */
+/** Agent 账号面板：按来源展示账号，并触发动作与导入。 */
 import { computed, onMounted, ref } from 'vue'
 import Button from '@/components/ui/Button.vue'
+import Combobox from '@/components/ui/Combobox.vue'
 import Dialog from '@/components/ui/Dialog.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import Icon from '@/components/ui/Icon.vue'
+import MultiSelect from '@/components/ui/MultiSelect.vue'
+import Tabs from '@/components/ui/Tabs.vue'
 import Tag from '@/components/ui/Tag.vue'
 import { askConfirm } from '@/utils/confirm'
 import { notify } from '@/utils/notify'
-import { invoke } from './bridge'
+import { invoke, openExternal } from './bridge'
 
 interface SourceConfig {
   id: string
@@ -46,6 +44,8 @@ interface ActionConfig {
   label: string
   scope: 'account' | 'source'
   sources: string[]
+  /** 仅对当前账号可用 */
+  currentOnly?: boolean
 }
 
 interface Snapshot {
@@ -56,9 +56,9 @@ interface Snapshot {
 }
 
 const state = ref<Snapshot | null>(null)
-const activeSource = ref('')
+/** 来源过滤：多选，空表示全部 */
+const activeSources = ref<string[]>([])
 const busyId = ref('')
-const sourceBusy = ref(false)
 
 const importVisible = ref(false)
 const importSource = ref('')
@@ -67,21 +67,63 @@ const importing = ref(false)
 const fileInput = ref<HTMLInputElement | null>(null)
 
 const sources = computed(() => state.value?.sources ?? [])
-const activeSourceLabel = computed(
-  () => sources.value.find(item => item.id === activeSource.value)?.label ?? '账号',
-)
+/** 来源过滤为收窄条件：未选任何来源时显示全部账号 */
+function sourceMatch(sourceId: string): boolean {
+  return activeSources.value.length === 0 || activeSources.value.indexOf(sourceId) >= 0
+}
+
 const accounts = computed(() => {
   const list = state.value?.accounts ?? []
-  return list.filter(item => item.source === activeSource.value)
+  return list.filter(item => sourceMatch(item.source))
 })
 const accountActions = computed(() => {
   const list = state.value?.actions ?? []
-  return list.filter(item => item.scope === 'account' && item.sources.indexOf(activeSource.value) >= 0)
+  return list.filter(
+    item => item.scope === 'account' && item.sources.some(id => sourceMatch(id)),
+  )
 })
-const sourceActions = computed(() => {
+
+/** 账号卡片上的动作（签到无需先设为当前账号） */
+function actionsFor(_account: AccountView): ActionConfig[] {
+  return accountActions.value
+}
+
+/** 一键签到：来源级动作，跟随来源过滤 */
+const checkinAllActions = computed(() => {
   const list = state.value?.actions ?? []
-  return list.filter(item => item.scope === 'source' && item.sources.indexOf(activeSource.value) >= 0)
+  return list.filter(
+    item => item.scope === 'source' && item.sources.some(id => sourceMatch(id)),
+  )
 })
+
+/** 一键签到按钮分组：每个有账号的可见来源一个按钮 */
+const checkinGroups = computed(() => {
+  const action = checkinAllActions.value.find(item => item.id === 'checkin-all')
+  if (!action) {
+    return []
+  }
+  return sources.value
+    .filter(item => sourceMatch(item.id) && action.sources.indexOf(item.id) >= 0)
+    .filter(item => countOf(item.id) > 0)
+    .map(item => ({ sourceId: item.id, label: item.label }))
+})
+const sourceOptions = computed(() =>
+  sources.value.map(item => ({
+    label: `${item.label}（${countOf(item.id)}）`,
+    value: item.id,
+  })))
+const filterLabel = computed(() => {
+  const labels = sources.value
+    .filter(item => activeSources.value.indexOf(item.id) >= 0)
+    .map(item => item.label)
+  if (labels.length === 0 || labels.length === sources.value.length) {
+    return '所有来源'
+  }
+  return labels.join('、')
+})
+function sourceLabelOf(sourceId: string): string {
+  return sources.value.find(item => item.id === sourceId)?.label ?? sourceId
+}
 
 function countOf(sourceId: string): number {
   return (state.value?.accounts ?? []).filter(item => item.source === sourceId).length
@@ -89,9 +131,7 @@ function countOf(sourceId: string): number {
 
 function applyState(next: Snapshot): void {
   state.value = next
-  if (!activeSource.value && next.sources.length > 0) {
-    activeSource.value = next.sources[0].id
-  }
+  // 空表示查询全部（见 sourceMatch）
   if (!importSource.value && next.sources.length > 0) {
     importSource.value = next.sources[0].id
   }
@@ -100,6 +140,95 @@ function applyState(next: Snapshot): void {
 async function refresh(): Promise<void> {
   const next = await invoke<Snapshot>('state')
   applyState(next)
+}
+
+/** 三种导入方式：网页登录 / 粘贴 token / 本地文件 */
+const IMPORT_MODES = [
+  { value: 'oauth', label: '网页登录' },
+  { value: 'token', label: '粘贴 Token' },
+  { value: 'file', label: '登录态导入' },
+]
+const importMode = ref('oauth')
+
+const webLoginBusy = ref(false)
+
+/** 网页登录：打开授权页并轮询取回 token，填入导入框 */
+async function webLogin(): Promise<void> {
+  if (!importSource.value) {
+    notify.warning('请先选择来源')
+    return
+  }
+
+  webLoginBusy.value = true
+  try {
+    const start = await invoke<{
+      authUrl: string
+      expiresIn: number
+      intervalMs: number
+    }>('oauthStart', { source: importSource.value })
+
+    openExternal(start.authUrl)
+    notify.info('已在浏览器打开登录页，登录完成后会自动填回 token')
+
+    const interval = start.intervalMs > 0 ? start.intervalMs : 1500
+    const deadline = Date.now() + start.expiresIn * 1000
+    while (Date.now() < deadline) {
+      // 轮询由前端驱动，后端每次只回一个结果
+      await new Promise(resolve => setTimeout(resolve, interval))
+      const result = await invoke<{ done: boolean, token?: string, email?: string }>('oauthPoll')
+      if (!result.done || !result.token) {
+        continue
+      }
+      importText.value = result.email ? `${result.email}:${result.token}` : result.token
+      // 切到 token 页签展示取回结果
+      importMode.value = 'token'
+      notify.success('token 已取回，点「导入」即可添加')
+      return
+    }
+    notify.warning('登录超时，请重新发起')
+  }
+  catch (e) {
+    notify.error(e instanceof Error ? e.message : String(e))
+  }
+  finally {
+    webLoginBusy.value = false
+  }
+}
+
+const scanBusy = ref(false)
+const scanned = ref<Array<{ token: string, channel: string, file: string }>>([])
+/** 尚不支持自动扫描的渠道 */
+const scanPending = ref<string[]>([])
+
+/** 扫描本机各渠道的登录态 */
+async function scanLocalAuth(): Promise<void> {
+  scanBusy.value = true
+  try {
+    const result = await invoke<{
+      accounts: Array<{ token: string, channel: string, file: string }>
+      pending: string[]
+    }>('scanLocalAuth')
+    scanned.value = result.accounts ?? []
+    scanPending.value = result.pending ?? []
+    if (!scanned.value.length) {
+      notify.info('没扫到已登录的本地账号')
+    }
+  }
+  catch (e) {
+    notify.error(e instanceof Error ? e.message : String(e))
+  }
+  finally {
+    scanBusy.value = false
+  }
+}
+
+/** 把扫到的账号一次性导入 */
+async function importScanned(): Promise<void> {
+  if (!scanned.value.length) {
+    return
+  }
+  importText.value = scanned.value.map(item => item.token).join('\n')
+  await importAccounts()
 }
 
 async function importAccounts(): Promise<void> {
@@ -115,7 +244,6 @@ async function importAccounts(): Promise<void> {
       text,
     })
     applyState(result.state)
-    activeSource.value = importSource.value
     importText.value = ''
     importVisible.value = false
     notify.success(
@@ -132,7 +260,7 @@ async function importAccounts(): Promise<void> {
   }
 }
 
-/** 从文本文件读入导入内容（浏览器 File API，不需要插件有文件权限） */
+/** 从文本文件读入导入内容 */
 async function importFromFile(event: Event): Promise<void> {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
@@ -186,7 +314,7 @@ async function runAccountAction(action: ActionConfig, account: AccountView): Pro
   busyId.value = account.id + ':' + action.id
   try {
     const result = await invoke<{
-      results: Array<{ id: string, ok: boolean, error?: string, message?: string, quota?: Quota }>
+      results: Array<{ id: string, ok: boolean, error?: string, message?: string, already?: boolean, quota?: Quota }>
       state: Snapshot
     }>('runAction', { action: action.id, source: account.source, ids: [account.id] })
     applyState(result.state)
@@ -195,7 +323,13 @@ async function runAccountAction(action: ActionConfig, account: AccountView): Pro
       notify.error(item.error || '操作失败')
     }
     else if (action.id === 'checkin') {
-      notify.success(item?.message || '签到完成')
+      // 「今天已签过」与「刚签到」区分提示
+      if (item?.already) {
+        notify.info(item?.message || '今天已经签到过了')
+      }
+      else {
+        notify.success(item?.message || '签到成功')
+      }
     }
   }
   catch (e) {
@@ -206,37 +340,49 @@ async function runAccountAction(action: ActionConfig, account: AccountView): Pro
   }
 }
 
-/** 来源级动作（一键签到） */
-async function runSourceAction(action: ActionConfig): Promise<void> {
-  if (accounts.value.length === 0) {
-    notify.warning('该来源下还没有账号')
-    return
-  }
-  sourceBusy.value = true
+/** 一键签到：按来源给该来源下所有账号签到，并汇总结果 */
+async function runCheckinAll(sourceId: string): Promise<void> {
+  const busyKey = 'checkin-all:' + sourceId
+  busyId.value = busyKey
   try {
     const result = await invoke<{
-      results: Array<{ id: string, ok: boolean, error?: string, message?: string }>
+      results: Array<{ id: string, ok: boolean, error?: string, message?: string, already?: boolean }>
       state: Snapshot
-    }>('runAction', { action: action.id, source: activeSource.value })
+    }>('runAction', { action: 'checkin-all', source: sourceId })
     applyState(result.state)
+
+    const label = sourceLabelOf(sourceId)
+    const done = result.results.filter(item => item.ok && !item.already).length
+    const skipped = result.results.filter(item => item.ok && item.already).length
     const failed = result.results.filter(item => !item.ok)
+
     if (failed.length === 0) {
-      notify.success(`${action.label}完成：${result.results.length} 个账号`)
+      if (done === 0) {
+        notify.info(`${label}：没有可签到的账号（${skipped} 个今天已签过）`)
+      }
+      else {
+        const parts = [`新签到 ${done} 个`]
+        if (skipped > 0) {
+          parts.push(`${skipped} 个今天已签过`)
+        }
+        notify.success(`${label}：${parts.join('，')}`)
+      }
     }
     else {
-      notify.error(`${action.label}：${failed.length} 个账号失败，${failed[0].error ?? ''}`)
+      notify.warning(
+        `${label}：新签 ${done} 个，已签 ${skipped} 个，失败 ${failed.length} 个。${failed[0].error ?? ''}`,
+      )
     }
   }
   catch (e) {
     notify.error(e instanceof Error ? e.message : String(e))
   }
   finally {
-    sourceBusy.value = false
+    busyId.value = ''
   }
 }
 
-function quotaText(account: AccountView): string {
-  if (!account.quota) {
+function quotaText(account: AccountView): string {  if (!account.quota) {
     return '未查询余量'
   }
   return `${account.quota.remain} / ${account.quota.total}`
@@ -269,31 +415,27 @@ onMounted(async () => {
 <template>
   <div class="accounts">
     <header class="accounts__head">
-      <div class="accounts__sources">
-        <button
-          v-for="source in sources"
-          :key="source.id"
-          type="button"
-          class="accounts__source"
-          :class="{ 'is-active': source.id === activeSource }"
-          @click="activeSource = source.id"
-        >
-          {{ source.label }}
-          <span class="accounts__source-count">{{ countOf(source.id) }}</span>
-        </button>
-      </div>
+      <!-- 来源可多选过滤：默认全选，取消勾选即隐藏该来源账号 -->
+      <MultiSelect
+        v-model="activeSources"
+        :options="sourceOptions"
+        placeholder="来源"
+        class="accounts__filter"
+      />
 
       <div class="accounts__head-actions">
+        <!-- 一键签到：每个来源一个按钮，仅该来源有账号时显示 -->
         <Button
-          v-for="action in sourceActions"
-          :key="action.id"
+          v-for="group in checkinGroups"
+          :key="'checkin-all:' + group.sourceId"
           variant="secondary"
           size="sm"
-          :loading="sourceBusy"
-          @click="runSourceAction(action)"
+          :loading="busyId === 'checkin-all:' + group.sourceId"
+          :disabled="Boolean(busyId) && busyId !== 'checkin-all:' + group.sourceId"
+          @click="runCheckinAll(group.sourceId)"
         >
           <Icon name="check" />
-          {{ action.label }}
+          一键签到{{ checkinGroups.length > 1 ? `·${group.label}` : '' }}
         </Button>
         <Button variant="primary" size="sm" @click="importVisible = true">
           <Icon name="plus" />
@@ -306,7 +448,7 @@ onMounted(async () => {
       <div v-if="accounts.length === 0" class="accounts__empty">
         <EmptyState
           icon="inbox"
-          :title="`${activeSourceLabel} 下还没有账号`"
+          :title="`${filterLabel} 下还没有账号`"
           description="支持粘贴 accessToken、email:token 逐行文本，或客户端导出的 JSON。"
         />
       </div>
@@ -316,6 +458,10 @@ onMounted(async () => {
           <div class="account-card__head">
             <span class="account-card__name" :title="account.name">{{ account.name }}</span>
             <Tag v-if="account.current" tone="brand" effect="plain" size="sm">当前</Tag>
+            <!-- 多来源混排时才标来源 -->
+            <Tag v-if="sources.length > 1" tone="info" effect="plain" size="sm">
+              {{ sourceLabelOf(account.source) }}
+            </Tag>
           </div>
 
           <div class="account-card__quota">
@@ -340,7 +486,7 @@ onMounted(async () => {
               {{ account.current ? '取消当前' : '设为当前' }}
             </Button>
             <Button
-              v-for="action in accountActions"
+              v-for="action in actionsFor(account)"
               :key="action.id"
               variant="ghost"
               size="sm"
@@ -361,41 +507,77 @@ onMounted(async () => {
       <div class="accounts-import">
         <div class="accounts-import__field">
           <label class="accounts-import__label">来源</label>
-          <div class="accounts-import__sources">
-            <button
-              v-for="source in sources"
-              :key="source.id"
-              type="button"
-              class="accounts__source"
-              :class="{ 'is-active': source.id === importSource }"
-              @click="importSource = source.id"
-            >
+          <!-- 弹窗内浮层易被裁剪，这里用原生 select -->
+          <select v-model="importSource" class="accounts-import__select">
+            <option v-for="source in sources" :key="source.id" :value="source.id">
               {{ source.label }}
-            </button>
-          </div>
+            </option>
+          </select>
         </div>
 
-        <div class="accounts-import__field">
-          <label class="accounts-import__label">账号内容</label>
+        <!-- 三种登录方式 -->
+        <Tabs v-model="importMode" :items="IMPORT_MODES" />
+
+        <input
+          ref="fileInput"
+          type="file"
+          accept=".txt,.json"
+          class="accounts-import__file"
+          style="display: none"
+          @change="importFromFile"
+        >
+
+        <div v-if="importMode === 'oauth'" class="accounts-import__panel">
+          <p class="accounts-import__hint">
+            点下面的按钮打开浏览器登录；完成后 token 会自动填到「粘贴 Token」页签。
+          </p>
+          <Button :loading="webLoginBusy" @click="webLogin">
+            <Icon name="key" />
+            打开浏览器登录
+          </Button>
+        </div>
+
+        <div v-else-if="importMode === 'token'" class="accounts-import__panel">
           <textarea
             v-model="importText"
             class="accounts-import__text"
-            rows="8"
+            rows="7"
             placeholder="每行一个 accessToken，或 email:token；也可以直接粘贴客户端导出的 JSON"
           />
+          <div class="accounts-import__file-row">
+            <Button variant="secondary" size="sm" @click="fileInput?.click()">
+              从文件读取
+            </Button>
+            <span class="accounts-import__hint">只填进上面的输入框，不会上传</span>
+          </div>
         </div>
 
-        <div class="accounts-import__footer">
-          <input
-            ref="fileInput"
-            type="file"
-            accept=".txt,.json"
-            class="accounts-import__file"
-            @change="importFromFile"
-          >
-          <span class="accounts-import__hint">
-            从文件读取只会填进上面的输入框，不会上传。
-          </span>
+        <div v-else class="accounts-import__panel">
+          <p class="accounts-import__hint">
+            自动扫描本机各渠道的登录态并按账号去重，扫到就能直接导入。
+          </p>
+          <Button variant="secondary" :loading="scanBusy" @click="scanLocalAuth">
+            <Icon name="search" />
+            扫描本地登录态
+          </Button>
+
+          <div v-if="scanned.length" class="accounts-import__scanned">
+            <div
+              v-for="item in scanned"
+              :key="item.token"
+              class="accounts-import__scanned-item"
+            >
+              <span>{{ item.channel }}</span>
+              <code>…{{ item.token.slice(-8) }}</code>
+            </div>
+            <Button size="sm" @click="importScanned">
+              导入这 {{ scanned.length }} 个账号
+            </Button>
+          </div>
+
+          <p v-if="scanPending.length" class="accounts-import__hint">
+            暂不支持自动扫描：{{ scanPending.join('、') }}（登录态在 SQLite 库里）
+          </p>
         </div>
       </div>
 
@@ -429,7 +611,7 @@ onMounted(async () => {
   gap: 12px;
   flex-wrap: wrap;
   padding: 12px 18px;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .accounts__sources,
@@ -445,26 +627,26 @@ onMounted(async () => {
   align-items: center;
   gap: 6px;
   padding: 4px 10px;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--color-border);
   border-radius: 999px;
   background: transparent;
-  color: var(--text-color);
+  color: var(--color-text);
   font-size: var(--app-font-size-sm);
   cursor: pointer;
 }
 
 .accounts__source:hover {
-  background: var(--hover-bg);
+  background: var(--color-hover);
 }
 
 .accounts__source.is-active {
-  border-color: var(--brand-color);
-  background: var(--active-bg);
-  color: var(--brand-color);
+  border-color: var(--color-brand);
+  background: var(--color-active);
+  color: var(--color-brand);
 }
 
 .accounts__source-count {
-  color: var(--text-muted);
+  color: var(--color-muted);
   font-size: var(--app-font-size-2xs);
   font-variant-numeric: tabular-nums;
 }
@@ -497,13 +679,20 @@ onMounted(async () => {
   flex-direction: column;
   gap: 8px;
   padding: 12px 14px;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--color-border);
   border-radius: 8px;
+}
+
+/* 来源多选：限宽，避免挤占右侧按钮 */
+.accounts__filter {
+  width: 14rem;
+  flex: 0 0 auto;
 }
 
 .account-card__head {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
   min-width: 0;
 }
@@ -527,18 +716,18 @@ onMounted(async () => {
   height: 6px;
   overflow: hidden;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--text-muted) 25%, transparent);
+  background: color-mix(in srgb, var(--color-muted) 25%, transparent);
 }
 
 .account-card__quota-fill {
   display: block;
   height: 100%;
   border-radius: 999px;
-  background: var(--brand-color);
+  background: var(--color-brand);
 }
 
 .account-card__quota-text {
-  color: var(--text-muted);
+  color: var(--color-muted);
   font-size: var(--app-font-size-xs);
   font-variant-numeric: tabular-nums;
 }
@@ -548,7 +737,7 @@ onMounted(async () => {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  color: var(--text-muted);
+  color: var(--color-muted);
   font-size: var(--app-font-size-2xs);
 }
 
@@ -564,13 +753,69 @@ onMounted(async () => {
   gap: 2px;
   flex-wrap: wrap;
   padding-top: 2px;
-  border-top: 1px dashed var(--border-color);
+  border-top: 1px dashed var(--color-border);
 }
 
 .accounts-import {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.accounts-import__select {
+  width: 100%;
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--surface-color);
+  color: var(--text-color);
+  font-size: 13px;
+  outline: none;
+}
+
+.accounts-import__select:focus {
+  border-color: var(--brand-color);
+}
+
+.accounts-import__scanned {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+}
+
+.accounts-import__scanned-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+}
+
+.accounts-import__scanned-item code {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.accounts-import__panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.accounts-import__file-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.accounts-import__source {
+  width: 100%;
 }
 
 .accounts-import__field {
@@ -580,7 +825,7 @@ onMounted(async () => {
 }
 
 .accounts-import__label {
-  color: var(--text-muted);
+  color: var(--color-muted);
   font-size: var(--app-font-size-sm);
 }
 
@@ -593,11 +838,11 @@ onMounted(async () => {
 .accounts-import__text {
   width: 100%;
   padding: 8px 10px;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--color-border);
   border-radius: 6px;
-  background: var(--surface-color);
-  color: var(--text-color);
-  font-family: var(--editor-font, monospace);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-family: var(--font-mono, monospace);
   font-size: var(--app-font-size-sm);
   line-height: 1.5;
   resize: vertical;
@@ -605,7 +850,7 @@ onMounted(async () => {
 }
 
 .accounts-import__text:focus {
-  border-color: var(--brand-color);
+  border-color: var(--color-brand);
 }
 
 .accounts-import__footer {
@@ -616,12 +861,12 @@ onMounted(async () => {
 
 .accounts-import__file {
   max-width: 16rem;
-  color: var(--text-muted);
+  color: var(--color-muted);
   font-size: var(--app-font-size-xs);
 }
 
 .accounts-import__hint {
-  color: var(--text-muted);
+  color: var(--color-muted);
   font-size: var(--app-font-size-2xs);
 }
 

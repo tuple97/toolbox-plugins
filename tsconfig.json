@@ -15,5 +15,10 @@
       "@toolbox/plugin-sdk": ["./packages/plugin-sdk/index.d.ts"]
     }
   },
-  "include": ["packages/**/*.ts", "plugins/**/*.ts", "plugins/**/*.vue"]
+  "include": [
+    "packages/**/*.ts",
+    "plugins/**/*.ts",
+    "plugins/**/*.vue",
+    "env.d.ts"
+  ]
 }

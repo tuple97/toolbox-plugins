@@ -1,9 +1,4 @@
-/**
- * JRebel 激活服务插件。
- *
- * 后端在 127.0.0.1 上提供 JRebel 的 license 接口（见 backend/index.js），
- * 前端只做启停、参数与日志展示。
- */
+/** JRebel 激活服务插件 */
 import type { PluginFrontendApi } from '@toolbox/plugin-sdk'
 import JrebelView from './JrebelView.vue'
 import { setPluginApi } from './bridge'

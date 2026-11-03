@@ -1,17 +1,4 @@
-/**
- * Agent 账号管理：多来源账号的导入、余量查询、切换与签到。
- *
- * 设计成「来源配置表 + 通用能力」：
- *   新增一个来源 = 往 SOURCES 里加一条（域名、能力开关、扩展动作），
- *   不需要改导入/查询/切换的主流程。
- *
- * 扩展点：
- *   - state.actions 把「当前来源可做的动作」交给界面渲染；
- *   - runAction({ action, ids, source }) 是统一入口，
- *     其它插件也可以通过 runtime.exports 调用它（见清单 exports）。
- *
- * 只用 ES5 语法：后端跑在 goja 里，没有模块系统与 Node API。
- */
+/** Agent 账号管理：多来源账号的导入、余量查询、切换与签到。 */
 
 // ------------------------------------------------------------ 来源配置
 
@@ -38,9 +25,24 @@ var SOURCES = [
 
 /** 扩展动作：界面按 source 渲染，runAction 统一分发 */
 var ACTIONS = [
-  { id: 'quota', label: '刷新余量', scope: 'account', sources: ['codebuddy', 'codebuddy-cn', 'workbuddy'] },
-  { id: 'checkin', label: '签到', scope: 'account', sources: ['codebuddy', 'codebuddy-cn', 'workbuddy'] },
-  { id: 'checkin-all', label: '一键签到', scope: 'source', sources: ['codebuddy', 'codebuddy-cn', 'workbuddy'] },
+  {
+    id: 'quota',
+    label: '刷新余量',
+    scope: 'account',
+    sources: ['codebuddy', 'codebuddy-cn', 'workbuddy'],
+  },
+  {
+    id: 'checkin',
+    label: '签到',
+    scope: 'account',
+    sources: ['codebuddy', 'codebuddy-cn', 'workbuddy'],
+  },
+  {
+    id: 'checkin-all',
+    label: '一键签到',
+    scope: 'source',
+    sources: ['codebuddy', 'codebuddy-cn', 'workbuddy'],
+  },
 ]
 
 /** 计费接口的套餐码白名单（与官方客户端保持一致） */
@@ -132,12 +134,7 @@ function nameOf(entry, token) {
   return '账号 ' + token.slice(0, 6)
 }
 
-/**
- * 解析导入文本，支持三种写法混用：
- *   1. 每行一个 accessToken
- *   2. 每行 email:token
- *   3. 一段 JSON（对象或数组），字段取 accessToken / access_token / token / email
- */
+/** 解析导入文本：每行 token、email:token 或 JSON（对象/数组），支持三种写法混用 */
 function parseImportText(text) {
   var out = []
   var trimmed = trim(text)
@@ -196,6 +193,54 @@ function authHeaders(token) {
   }
 }
 
+/** 把服务端的错误响应揉成一句可读的话 */
+function describeHTTPError(what, resp) {
+  var body = parseBody(resp)
+  var message = ''
+  if (body && typeof body === 'object') {
+    message = trim(
+      body.msg
+      || body.message
+      || (body.data && (body.data.msg || body.data.message))
+      || body.error
+      || body.error_description
+      || '',
+    )
+  }
+
+  var status = resp.status
+  var code = body && body.code !== undefined && body.code !== null ? body.code : ''
+  // 技术细节（状态码 / 业务码 / 原文片段）只进日志
+  toolbox.log('[' + what + '] HTTP ' + status
+    + (code !== '' ? ' code=' + code : '')
+    + '；响应：' + String(resp.body || '').slice(0, 160))
+
+  if (!message) {
+    var raw = String(resp.body || '')
+    // 网关/代理返回的 HTML 页：不把整页塞进提示
+    if (/^\\s*</.test(raw)) {
+      message = '服务端拒绝了请求，多为登录态或网络白名单问题，请重新导入账号'
+    }
+    else if (raw) {
+      message = trim(raw.slice(0, 80))
+    }
+  }
+  // 面向用户只留一句话：服务端给的原因（没有就给通用提示）
+  return new Error(message || (what + '失败，请稍后重试'))
+}
+
+/** 发一个 JSON 请求；非 2xx 一律抛出带服务端原因的异常 */
+function requestOK(method, url, token, body, what) {
+  var resp = requestJSON(method, url, token, body)
+  if (resp.status === 401 || resp.status === 403) {
+    throw new Error('登录态已失效，请重新导入账号')
+  }
+  if (resp.status < 200 || resp.status >= 300) {
+    throw describeHTTPError(what, resp)
+  }
+  return resp
+}
+
 function requestJSON(method, url, token, body) {
   var payload = {
     method: method,
@@ -245,7 +290,7 @@ function numberOr(value, fallback) {
 // ------------------------------------------------------------ 余量
 
 function queryQuota(source, token) {
-  var resp = requestJSON('POST', source.api + '/v2/billing/meter/get-user-resource', token, {
+  var resp = requestOK('POST', source.api + '/v2/billing/meter/get-user-resource', token, {
     PageNumber: 1,
     PageSize: 200,
     ProductCode: 'p_tcaca',
@@ -253,22 +298,23 @@ function queryQuota(source, token) {
     OnlyValidPeriod: true,
     PackageCodes: PACKAGE_CODES,
     NeedInUsage: true,
-  })
+  }, '余量查询')
 
-  if (resp.status === 401 || resp.status === 403) {
-    throw new Error('登录态已失效，请重新导入 token')
-  }
-  if (resp.status !== 200) {
-    throw new Error('接口返回 ' + resp.status)
+  var payload = parseBody(resp)
+  // HTTP 200 也可能是业务失败：只有 code 为 0/200 才算成功
+  var code = payload && payload.code !== undefined && payload.code !== null ? payload.code : 0
+  if (String(code) !== '0' && String(code) !== '200') {
+    var message = trim(payload && (payload.msg || payload.message)) || '服务端返回 code=' + code
+    throw new Error('余量查询失败：' + message)
   }
 
-  var accounts = findAccounts(parseBody(resp))
+  var accounts = findAccounts(payload)
   var remain = 0
   var total = 0
   var cycleEnd = ''
   for (var i = 0; i < accounts.length; i++) {
     var pack = accounts[i] || {}
-    // 周期制以 Cycle* 为准：Capacity* 会把下月未到期的额度算进来，导致虚高
+    // 周期制以 Cycle* 为准，避免把未到期额度算进来
     var packRemain = numberOr(pack.CycleCapacityRemainPrecise, numberOr(pack.CapacityRemainPrecise, 0))
     var packSize = numberOr(pack.CycleCapacitySizePrecise, numberOr(pack.CapacitySizePrecise, 0))
     remain += packRemain
@@ -291,11 +337,26 @@ function queryQuota(source, token) {
 
 // ------------------------------------------------------------ 签到
 
+/** 解析签到状态：返回 claimed / unclaimed / unknown */
 function checkinStateOf(payload) {
   if (!payload) {
     return 'unknown'
   }
   var data = payload.data || payload.Data || payload
+
+  // 1) 主字段 today_checked_in（大小写两种写法都认）
+  var todayChecked = data.today_checked_in
+  if (todayChecked === undefined || todayChecked === null) {
+    todayChecked = data.TodayCheckedIn
+  }
+  if (todayChecked === true || todayChecked === 1 || todayChecked === 'true') {
+    return 'claimed'
+  }
+  if (todayChecked === false || todayChecked === 0 || todayChecked === 'false') {
+    return 'unclaimed'
+  }
+
+  // 2) 兼容旧字段
   var state = data.state || data.State || data.status || ''
   var text = String(state).toLowerCase()
   if (text === 'claimed' || text === 'checked' || text === 'done' || text === '1') {
@@ -313,6 +374,20 @@ function checkinStateOf(payload) {
   return 'unknown'
 }
 
+/** 从状态响应里取连续天数（真实字段 streak_days） */
+function checkinStreakOf(payload) {
+  if (!payload) {
+    return 0
+  }
+  var data = payload.data || payload.Data || payload
+  var days = data.streak_days
+  if (days === undefined || days === null) {
+    days = data.StreakDays
+  }
+  return numberOr(days, 0)
+}
+
+/** 查询签到状态，返回 { state, streak, payload }；两条路径逐个试 */
 function checkinStatus(source, token) {
   var paths = ['/v2/billing/meter/checkin-activity-status', '/v2/billing/meter/checkin-status']
   var lastError = ''
@@ -320,38 +395,88 @@ function checkinStatus(source, token) {
     try {
       var resp = requestJSON('POST', source.api + paths[i], token, {})
       if (resp.status === 200) {
-        return checkinStateOf(parseBody(resp))
+        var payload = parseBody(resp)
+        var code = payload && payload.code !== undefined && payload.code !== null ? payload.code : 0
+        // 业务失败（非 0）不能当成「还没签到」，否则会把失败误判成可签
+        if (String(code) !== '0' && String(code) !== '200') {
+          lastError = trim(payload && (payload.msg || payload.message)) || 'code=' + code
+          continue
+        }
+        return {
+          state: checkinStateOf(payload),
+          streak: checkinStreakOf(payload),
+          payload: payload,
+        }
       }
-      lastError = '接口返回 ' + resp.status
+      if (resp.status === 401 || resp.status === 403) {
+        throw new Error('登录态已失效，请重新导入账号')
+      }
+      lastError = describeHTTPError('签到状态查询', resp).message
     }
     catch (e) {
+      if (e && e.message && e.message.indexOf('登录态已失效') >= 0) {
+        throw e
+      }
       lastError = String(e && e.message ? e.message : e)
     }
   }
   throw new Error(lastError || '无法获取签到状态')
 }
 
+/** 执行签到；code 10001 或提示已签到都视为「今天已签过」 */
 function performCheckin(source, token) {
   var resp = requestJSON('POST', source.api + '/v2/billing/meter/daily-checkin', token, {})
   var payload = parseBody(resp)
+  var code = payload ? numberOr(payload.code, numberOr(payload.data && payload.data.code, 0)) : 0
+  var reply = trim(payload ? (payload.msg || payload.message || (payload.data && (payload.data.msg || payload.data.message))) : '')
+
+  // 10001 = 今天已经签过：不是失败，但也不能算「刚刚签到成功」
+  if (code === 10001 || /已签到|已经签到|重复签/.test(reply)) {
+    return { state: 'claimed', message: reply || '今天已经签到过了', already: true }
+  }
 
   if (resp.status === 401 || resp.status === 403) {
-    throw new Error('登录态已失效，请重新导入 token')
+    throw new Error('登录态已失效，请重新导入账号')
   }
-  if (resp.status !== 200) {
-    throw new Error('签到接口返回 ' + resp.status)
+  if (String(code) !== '0' && String(code) !== '200') {
+    // 有业务说明就以它为准；具体 code 只进日志
+    toolbox.log('[签到] HTTP ' + resp.status + ' code=' + code + '；消息：' + reply)
+    throw new Error(reply || '签到失败，请稍后重试')
+  }
+  if (resp.status < 200 || resp.status >= 300) {
+    throw describeHTTPError('签到', resp)
   }
 
-  var code = payload ? numberOr(payload.code || (payload.data && payload.data.code), 0) : 0
-  // 10001 = 今天已经签过，不是失败
-  if (code === 10001) {
-    return { state: 'claimed', message: '今天已经签到过了' }
+  return { state: 'claimed', message: reply || '签到成功', already: false }
+}
+
+/** 给单个账号签到：先查状态，已签过的直接返回 */
+function runCheckin(account, source) {
+  var status = checkinStatus(source, account.token)
+  var streakFromServer = status.streak || 0
+  if (status.state === 'claimed') {
+    // 服务端已明确「今天签过」，不再发签到请求
+    account.checkin = {
+      state: 'claimed',
+      message: '今天已经签到过了',
+      lastAt: account.checkin && account.checkin.lastAt ? account.checkin.lastAt : nowISO(),
+      streak: streakFromServer || (account.checkin && account.checkin.streak) || 0,
+    }
+    account.updatedAt = nowISO()
+    return { ok: true, message: account.checkin.message, already: true }
   }
-  var message = ''
-  if (payload) {
-    message = payload.msg || payload.message || (payload.data && (payload.data.msg || payload.data.message)) || ''
+
+  var result = performCheckin(source, account.token)
+  var streakBase = streakFromServer || (account.checkin && account.checkin.streak) || 0
+  account.checkin = {
+    state: result.state,
+    message: result.message,
+    lastAt: nowISO(),
+    // 服务端给了天数就以服务端为准，否则本地累加
+    streak: result.already ? streakBase : (streakFromServer || streakBase + 1),
   }
-  return { state: 'claimed', message: message || '签到成功' }
+  account.updatedAt = nowISO()
+  return { ok: true, message: result.message, already: result.already }
 }
 
 // ------------------------------------------------------------ 账号操作
@@ -404,41 +529,20 @@ function runQuota(account, source) {
   return { ok: true, quota: quota }
 }
 
-function runCheckin(account, source) {
-  var state = checkinStatus(source, account.token)
-  if (state === 'claimed') {
-    account.checkin = {
-      state: 'claimed',
-      message: '今天已经签到过了',
-      lastAt: nowISO(),
-      streak: (account.checkin && account.checkin.streak) || 0,
-    }
-    account.updatedAt = nowISO()
-    return { ok: true, message: account.checkin.message }
-  }
-  var result = performCheckin(source, account.token)
-  account.checkin = {
-    state: result.state,
-    message: result.message,
-    lastAt: nowISO(),
-    streak: ((account.checkin && account.checkin.streak) || 0) + 1,
-  }
-  account.updatedAt = nowISO()
-  return { ok: true, message: result.message }
-}
-
-/**
- * 统一动作入口。
- *
- * ids 为空时表示「该来源下的全部账号」（一键签到就是这么用的）。
- */
+/** 统一动作入口；ids 为空表示该来源下全部账号 */
 function runAction(input) {
   var action = trim(input && input.action)
   var sourceId = trim(input && input.source)
   var ids = (input && input.ids) || []
   var results = []
 
+  // 兼容旧动作名：checkin-all 与 checkin 的语义已合并为「批量签该来源全部」
+  if (action === 'checkin-all') {
+    action = 'checkin'
+  }
+
   var list = loadAccounts()
+
   for (var i = 0; i < list.length; i++) {
     var account = list[i]
     if (sourceId && account.source !== sourceId) {
@@ -456,8 +560,19 @@ function runAction(input) {
       if (action === 'quota') {
         results.push({ id: account.id, ok: true, quota: runQuota(account, source).quota })
       }
-      else if (action === 'checkin' || action === 'checkin-all') {
-        results.push({ id: account.id, ok: true, message: runCheckin(account, source).message })
+      else if (action === 'checkin') {
+        var checkin = runCheckin(account, source)
+        if (!checkin.ok) {
+          results.push({ id: account.id, ok: false, error: checkin.error })
+        }
+        else {
+          results.push({
+            id: account.id,
+            ok: true,
+            message: checkin.message,
+            already: checkin.already,
+          })
+        }
       }
       else {
         results.push({ id: account.id, ok: false, error: '未知动作: ' + action })
@@ -596,4 +711,254 @@ toolbox.handler('reveal', function (input) {
   // 只回传后四位，避免明文 token 长期停在界面上
   var token = String(account.token)
   return { token: token, masked: token.length > 8 ? token.slice(0, 4) + '…' + token.slice(-4) : '…' }
+})
+
+// ------------------------------------------------------------ 网页登录
+// 网页登录：state + 轮询，由前端定时器驱动
+
+/** 安全取对象：响应里的 data 可能不是对象 */
+function objectOf(value) {
+  if (value && typeof value === 'object') {
+    return value
+  }
+  return {}
+}
+
+var LOGIN_TTL_MS = 10 * 60 * 1000
+var pendingLogin = null
+
+/** 登录相关请求统一带这几个头，表示匿名请求 */
+var ANON_HEADERS = {
+  'X-No-Authorization': 'true',
+  'X-No-User-Id': 'true',
+  'X-No-Enterprise-Id': 'true',
+  'X-No-Department-Info': 'true',
+  'Content-Type': 'application/json',
+}
+
+/** UUID v4：只用于 loginSessionId / loginId，随机即可 */
+function newSessionId() {
+  var hex = '0123456789abcdef'
+  var out = ''
+  for (var i = 0; i < 32; i++) {
+    out += hex.charAt(Math.floor(Math.random() * 16))
+  }
+  return out.slice(0, 8) + '-' + out.slice(8, 12) + '-4' + out.slice(13, 16) +
+    '-8' + out.slice(17, 20) + '-' + out.slice(20, 32)
+}
+
+function readBody(resp, what) {
+  if (resp.status < 200 || resp.status >= 300) {
+    throw describeHTTPError(what, resp)
+  }
+  try {
+    return JSON.parse(resp.body)
+  }
+  catch (e) {
+  // 网关 HTML 页不提示原文，只记日志
+    toolbox.log('[' + what + '] 响应不是 JSON：' + String(resp.body).slice(0, 120))
+    throw new Error(what + '失败，请稍后重试')
+  }
+}
+
+/** 发起网页登录：取一次 state 与授权页地址 */
+toolbox.handler('oauthStart', function (input) {
+  var sourceId = trim(input && input.source)
+  var source = sourceOf(sourceId)
+  if (!source) {
+    throw new Error('请先选择账号来源')
+  }
+
+  var resp = toolbox.http.request({
+    method: 'POST',
+    url: source.api + '/v2/plugin/auth/state?platform=ide',
+    headers: ANON_HEADERS,
+    body: '{}',
+  })
+  var body = objectOf(readBody(resp, 'auth/state'))
+  var data = objectOf(body.data)
+  var state = trim(data.state)
+  var authUrl = trim(data.authUrl || data.auth_url || data.url)
+  if (state === '' || authUrl === '') {
+    throw new Error('登录接口没有返回 state / authUrl')
+  }
+
+  pendingLogin = {
+    loginId: newSessionId(),
+    sourceId: sourceId,
+    state: state,
+    authUrl: authUrl,
+    expiresAt: Date.now() + LOGIN_TTL_MS,
+  }
+
+  return {
+    loginId: pendingLogin.loginId,
+    authUrl: authUrl + (authUrl.indexOf('?') >= 0 ? '&' : '?') +
+      'loginSessionId=' + newSessionId(),
+    expiresIn: Math.floor(LOGIN_TTL_MS / 1000),
+    intervalMs: 1500,
+  }
+})
+
+/** 轮询一次登录结果；done=false 表示还没完成 */
+toolbox.handler('oauthPoll', function () {
+  if (!pendingLogin) {
+    throw new Error('没有进行中的登录，请重新发起')
+  }
+  if (Date.now() > pendingLogin.expiresAt) {
+    pendingLogin = null
+    throw new Error('登录已超时，请重新发起')
+  }
+
+  var source = sourceOf(pendingLogin.sourceId)
+  if (!source) {
+    throw new Error('登录来源已失效，请重新发起')
+  }
+
+  var resp = toolbox.http.request({
+    method: 'GET',
+    url: source.api + '/v2/plugin/auth/token?state=' + encodeURIComponent(pendingLogin.state),
+    headers: ANON_HEADERS,
+  })
+  var body = objectOf(readBody(resp, 'auth/token'))
+  var code = Number(body.code)
+  var msg = trim(body.msg || body.message)
+
+  // 非 0/200 时区分「继续等待」与「终局失败」
+  if (code !== 0 && code !== 200) {
+    if (isTransientLoginCode(code, msg)) {
+      return { done: false }
+    }
+    pendingLogin = null
+    toolbox.log('[oauthPoll] 登录失败 code=' + code + '；消息：' + msg)
+    throw new Error(msg || '登录失败，请重新发起')
+  }
+
+  var data = objectOf(body.data)
+  var token = trim(data.accessToken || data.access_token)
+  if (token === '') {
+    return { done: false }
+  }
+
+  var result = {
+    done: true,
+    token: token,
+    email: trim(data.email || data.mail),
+    name: trim(data.nickname || data.name),
+  }
+  pendingLogin = null
+  return result
+})
+
+/** 判断登录轮询的非 0 业务码是否属于「继续等待」 */
+function isTransientLoginCode(code, msg) {
+  // 已知的「等待中」文案
+  if (/未登录|未完成|等待|处理中|pending|not.?login|not.?authorized/i.test(msg)) {
+    return true
+  }
+  // 明确的终局错误
+  if (/失效|过期|不存在|拒绝|denied|invalid|expired/i.test(msg)) {
+    return false
+  }
+  return true
+}
+
+/** 取消进行中的登录（用户关掉登录弹窗时调） */
+toolbox.handler('oauthCancel', function () {
+  pendingLogin = null
+  return { ok: true }
+})
+
+// ------------------------------------------------------------ 本地登录态扫描
+
+/** 各家写在 secret-storage.xml 里的键名（与 IDEA 插件一致） */
+var AUTH_KEYS = [
+  'Tencent-Cloud.coding-copilot.new.accessToken',
+  'Tencent-Cloud.coding-copilot.accessToken',
+  'planning-genie.new.accessTokencn',
+  'planning-genie.new.accessToken',
+]
+
+/** XML 属性是转义过的，先还原再当 JSON 解析 */
+function unescapeXml(text) {
+  return String(text)
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
+}
+
+/** 从一个 secret-storage.xml 里取出 accessToken */
+function tokensFromSecretStorage(xml, channel) {
+  var out = []
+  var re = /<Entry\s+key="([^"]+)"\s+value="([^"]*)"/g
+  var match = re.exec(xml)
+  while (match !== null) {
+    var key = match[1]
+    if (AUTH_KEYS.indexOf(key) < 0 && key.indexOf('accessToken') < 0) {
+      match = re.exec(xml)
+      continue
+    }
+    var raw = unescapeXml(match[2])
+    var token = ''
+    try {
+      var parsed = JSON.parse(raw)
+      token = trim(parsed.accessToken || (parsed.auth && parsed.auth.accessToken))
+    }
+    catch (e) {
+      token = trim(raw)
+    }
+    if (token.length > 20) {
+      out.push({ token: token, channel: channel })
+    }
+    match = re.exec(xml)
+  }
+  return out
+}
+
+/** 扫描本机 JetBrains 系的登录态，按 token 去重 */
+toolbox.handler('scanLocalAuth', function () {
+  var results = []
+  var seen = {}
+  var skipped = []
+
+  var roots = ['%APPDATA%\\JetBrains', '%LOCALAPPDATA%\\JetBrains']
+  for (var r = 0; r < roots.length; r++) {
+    var root = roots[r]
+    var dirs = []
+    try {
+      dirs = toolbox.fs.list(root) || []
+    }
+    catch (e) {
+      dirs = []
+    }
+    for (var i = 0; i < dirs.length; i++) {
+      var file = root + '\\' + dirs[i] + '\\options\\secret-storage.xml'
+      if (!toolbox.fs.exists(file)) {
+        continue
+      }
+      try {
+        var xml = toolbox.fs.readText(file)
+        var found = tokensFromSecretStorage(xml, 'IDEA · ' + dirs[i])
+        for (var j = 0; j < found.length; j++) {
+          if (seen[found[j].token]) {
+            continue
+          }
+          seen[found[j].token] = true
+          results.push({
+            token: found[j].token,
+            channel: found[j].channel,
+            file: file,
+          })
+        }
+      }
+      catch (e) {
+        // 读不了的目录直接跳过，不影响其它渠道
+      }
+    }
+  }
+
+  skipped.push('VSCode / CodeBuddy IDE（SQLite）、WorkBuddy（SQLite）')
+  return { accounts: results, pending: skipped }
 })

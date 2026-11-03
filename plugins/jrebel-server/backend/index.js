@@ -1,15 +1,4 @@
-/**
- * JRebel 激活服务：在 127.0.0.1 上跑一个 JRebel License Server。
- *
- * 协议实现参照 yu-xiaoyao/jrebel-license-active-server：
- *   POST /{guid}/jrebel/leases        发放 lease（核心）
- *   POST /{guid}/agent/leases         同上（新客户端走这条）
- *   POST /{guid}/jrebel/leases/1      简化版 lease
- *   POST /{guid}/jrebel/validate-connection  连接校验
- *   GET  /                            首页，方便用浏览器确认服务在跑
- *
- * 只用 ES5 语法：后端跑在 goja 里，没有 Node 生态，也没有模块系统。
- */
+/** JRebel 激活服务：在 127.0.0.1 上跑一个 JRebel License Server */
 
 var SERVER_GUID = 'a1b4aea8-b031-4302-b602-670a990272cb'
 var CHARSET = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890'
@@ -352,6 +341,13 @@ toolbox.handler('save', function (input) {
       toolbox.log('按新端口重启失败: ' + String(e))
     }
   }
+  return snapshot()
+})
+
+/** 只切换「随应用启动」 */
+toolbox.handler('setAutoStart', function (input) {
+  config.autoStart = Boolean(input && input.autoStart)
+  saveConfig()
   return snapshot()
 })
 

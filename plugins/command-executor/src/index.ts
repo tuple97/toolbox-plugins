@@ -1,9 +1,4 @@
-/**
- * SQL 执行插件（多例工具）。
- *
- * 依赖宿主内核最深的一个：CodeEditor + SQL 补全、语句切分、运行槽状态、
- * 结果表格与执行日志都来自宿主。插件本身只负责编排与交互。
- */
+/** SQL 执行插件（多例工具） */
 
 import type { PluginFrontendApi } from '@toolbox/plugin-sdk'
 import CommandExecutorView from './CommandExecutorView.vue'

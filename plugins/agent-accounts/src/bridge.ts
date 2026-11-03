@@ -1,9 +1,4 @@
-/**
- * 视图 → 插件上下文的桥。
- *
- * 工具视图由宿主按组件渲染，拿不到 activate(api) 的上下文，
- * 这里由 index.ts 在激活时注入一次。
- */
+/** 视图 → 插件上下文的桥：激活时由 index.ts 注入。 */
 import type { PluginFrontendApi } from '@toolbox/plugin-sdk'
 
 let current: PluginFrontendApi | null = null
@@ -17,4 +12,9 @@ export function invoke<T>(handler: string, args: unknown = {}): Promise<T> {
     return Promise.reject(new Error('插件尚未激活'))
   }
   return current.host.invoke<T>(handler, args)
+}
+
+/** 用系统浏览器打开链接 */
+export function openExternal(url: string): void {
+  current?.host.openExternal(url)
 }

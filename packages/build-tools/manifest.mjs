@@ -166,7 +166,7 @@ function validateDependencies(manifest, bad) {
   }
 }
 
-const ALLOWED_PERMISSION_FIELDS = new Set(['network', 'storage', 'db', 'events', 'server'])
+const ALLOWED_PERMISSION_FIELDS = new Set(['network', 'storage', 'db', 'events', 'server', 'files', 'fileWrite'])
 const DB_CAPS = new Set(['read', 'write'])
 
 function validatePermissions(permissions, bad) {
@@ -181,6 +181,23 @@ function validatePermissions(permissions, bad) {
       bad(`permissions 中存在未实现的权限字段 ${key}（协议只保留宿主真正强制执行的能力）`)
     }
   }
+  // 只读文件白名单：每一项是一个目录（支持 ~ 与 %APPDATA%）
+  if (permissions.files !== undefined) {
+    if (!Array.isArray(permissions.files)) {
+      bad('permissions.files 必须是数组')
+    }
+    for (const item of permissions.files) {
+      if (typeof item !== 'string' || item.trim() === '') {
+        bad('permissions.files 的每一项必须是非空字符串')
+      }
+    }
+  }
+
+  // 写入用户选择的文件：只控制「能否导出」，写入位置仍由系统对话框决定
+  if (permissions.fileWrite !== undefined && typeof permissions.fileWrite !== 'boolean') {
+    bad('permissions.fileWrite 必须是布尔值')
+  }
+
   if (permissions.network !== undefined) {
     if (!Array.isArray(permissions.network)) {
       bad('permissions.network 必须是数组')

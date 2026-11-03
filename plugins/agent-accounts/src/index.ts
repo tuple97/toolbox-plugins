@@ -1,9 +1,4 @@
-/**
- * Agent 账号管理插件。
- *
- * 后端负责账号存储、余量查询、签到与「动作」分发（见 backend/index.js），
- * 前端按来源分栏展示并触发动作。
- */
+/** Agent 账号管理插件入口。 */
 import type { PluginFrontendApi } from '@toolbox/plugin-sdk'
 import AccountsView from './AccountsView.vue'
 import { setPluginApi } from './bridge'

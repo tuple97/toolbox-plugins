@@ -44,7 +44,7 @@ import type {
 } from '@/types'
 
 const props = defineProps<{
-  /** 所属 Tab 的 ID，回传状态时一并返回 */
+  /** 所属 Tab 的 ID */
   tabId: number
   /** 从 Tab payload 恢复的状态 */
   initialPayload: Record<string, unknown>
@@ -52,7 +52,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'change', tabId: number, payload: DbQueryPayload): void
-  /** 首次初始化完成（父级据此关闭 loading 遮罩） */
+  /** 首次初始化完成 */
   (e: 'ready'): void
 }>()
 
@@ -60,7 +60,7 @@ const logStore = useLogStore()
 const tabStore = useTabStore()
 const configStore = useConfigStore()
 
-/** 跳转到单例功能标签页（连接管理 / SQL 模板） */
+/** 跳转到单例功能标签页 */
 function openTool(type: ToolType) {
   tabStore.openTool(type)
 }
@@ -73,10 +73,10 @@ const connections = ref<DBConnection[]>([])
 const templateId = ref<number | null>(null)
 const connId = ref<number | null>(null)
 
-/** 当前模板解析出的变量配置与字段映射；由模板决定，查询页只读 */
+/** 当前模板解析出的变量配置与字段映射 */
 const variableConfigs = ref<VariableConfig[]>([])
 const fieldMappings = ref<FieldMapping[]>([])
-/** 当前模板配置的导出模板：结果行右键「复制为…」里作为自定义选项列出 */
+/** 当前模板配置的导出模板（结果行右键「复制为…」的自定义选项） */
 const exportTemplates = ref<ExportTemplate[]>([])
 
 /** 变量值 */
@@ -88,15 +88,12 @@ const running = ref(false)
 
 /** 当前页码，从 1 开始 */
 const page = ref(1)
-/**
- * 每页条数：属于当前 Tab 的私有状态，不写入模板。
- * 这样同一个模板在不同标签页可以各用各的分页大小；0 表示不分页。
- */
+/** 每页条数：当前 Tab 私有，不写入模板；0 表示不分页 */
 const pageSize = ref(DEFAULT_PAGE_SIZE)
-/** 上一次执行得到的总数，翻页时带回后端以避免重复统计 */
+/** 上一次执行得到的总数，翻页时带回 */
 const lastTotal = ref(0)
 
-// 连接管理与 SQL 模板已改为独立标签页，这里不再维护弹窗状态
+// 连接管理与 SQL 模板已改为独立标签页
 
 const formRef = ref<{ getValues: () => Record<string, unknown> } | null>(null)
 
@@ -105,20 +102,16 @@ const formRef = ref<{ getValues: () => Record<string, unknown> } | null>(null)
 /** 条件区容器：结果区高度计算用 */
 const formPanelRef = ref<HTMLElement | null>(null)
 
-/** 结果区页签：log = 执行日志（固定），result = 查询结果 */
+/** 结果区页签：log 为执行日志，result 为查询结果 */
 const activeTab = ref('log')
 
-/** 结果区页签定义（日志懒挂载：没打开过就不去渲染日志面板） */
+/** 结果区页签定义（日志懒挂载） */
 const resultTabs = [
   { value: 'log', label: '执行日志', lazy: true },
   { value: 'result', label: '查询结果' },
 ]
 
-/**
- * 模板下拉的选中值：Combobox 用 string 做 v-model，这里做一层转换。
- * 置空（清空按钮）同样会经过 setter，于是「清空模板」与 `watch(templateId)`
- * 那套「重载配置 + 回第一页」的逻辑完全一致，不用再写一遍。
- */
+/** 模板下拉选中值：Combobox 用 string 做 v-model，这里做转换 */
 const templateSelection = computed({
   get: () => (templateId.value === null ? '' : String(templateId.value)),
   set: (value: string) => {
@@ -126,19 +119,14 @@ const templateSelection = computed({
   },
 })
 
-/**
- * 模板下拉选项。
- *
- * 停用的模板仍然列出（配置还在，直接藏起来会让人以为模板丢了），
- * 只在名字上标注出来；选中后执行会被拦住并说明原因。
- */
+/** 模板下拉选项：停用的模板仍列出并标注 */
 const templateOptions = computed(() =>
   templates.value.map(tpl => ({
     label: tpl.enabled ? tpl.name : `${tpl.name}（已停用）`,
     value: String(tpl.id),
   })))
 
-/** 日志页签组件引用：切到该页签时把日志滚到底部 */
+/** 日志组件引用：切到日志页签时滚到底部 */
 const logRef = ref<InstanceType<typeof ExecutionLog> | null>(null)
 
 watch(activeTab, async (tab) => {
@@ -148,36 +136,31 @@ watch(activeTab, async (tab) => {
   }
 })
 
-/**
- * 结果来源：解析表名（复制为 UPDATE / DELETE）与表头标记主键共用一套口径。
- *
- * 单独抽出来是为了**只有一处**知道「这条结果对应哪个连接 / 哪个库」——
- * 表名解析与主键查询对它的要求完全一样，两处各写一遍迟早写岔。
- */
+/** 结果来源：复制为 UPDATE/DELETE 与表头主键标记共用 */
 function sourceOf(res: QueryResult): ResultSourceContext {
   return {
     connId: connId.value,
-    // 库的口径与执行一致：先看本次请求选的库，再看结果回带的生效库，最后连接默认库
+    // 库的口径与执行一致：依次取本次请求、结果回带、连接默认库
     database: database.value || res.database || currentConnection.value?.database || '',
     dbType: currentConnection.value?.dbType ?? 'mysql',
     sql: res.sql,
   }
 }
 
-/** 给结果区用的来源（无结果时为 null，表头也就不去查主键） */
+/** 给结果区用的来源（无结果为 null） */
 const resultSource = computed(() => (result.value ? sourceOf(result.value) : null))
 
-/** 结果表格右键菜单：位置与要作用的行（多选时是多行） */
+/** 结果表格右键菜单的位置与作用的行 */
 const rowMenuVisible = ref(false)
 const rowMenuX = ref(0)
 const rowMenuY = ref(0)
 const rowMenuRows = ref<Record<string, unknown>[]>([])
 
-/** 菜单项：内置 INSERT / UPDATE / DELETE，加上当前模板配置的导出模板 */
+/** 菜单项：内置三项 + 模板配置的导出模板 */
 const rowMenuItems = computed(() =>
   rowSqlMenuItems(Math.max(1, rowMenuRows.value.length), exportTemplates.value))
 
-/** 打开结果行右键菜单（内容为「复制为 INSERT / UPDATE / DELETE」） */
+/** 打开结果行右键菜单 */
 function openRowMenu(payload: {
   row: Record<string, unknown>
   rows: Record<string, unknown>[]
@@ -190,7 +173,7 @@ function openRowMenu(payload: {
   rowMenuVisible.value = true
 }
 
-/** 处理「复制为…」：内置项按行生成 SQL，导出模板按模板逐行渲染 */
+/** 处理「复制为…」：内置项生成 SQL，导出模板按模板渲染 */
 async function handleRowMenuSelect(item: ContextMenuAction) {
   const rows = rowMenuRows.value
   const data = result.value
@@ -198,7 +181,7 @@ async function handleRowMenuSelect(item: ContextMenuAction) {
     return
   }
 
-  // 自定义导出模板：入参就是结果行，由后端按模板渲染（与内置三项并列）
+  // 自定义导出模板：由后端按模板渲染
   const exportTemplate = exportTemplateOfMenuItem(item.key, exportTemplates.value)
   if (exportTemplate) {
     await copyRowsByExportTemplate(exportTemplate, rows)
@@ -209,7 +192,7 @@ async function handleRowMenuSelect(item: ContextMenuAction) {
   if (!kind) {
     return
   }
-  // 选中的每一行共用同一套上下文，只有 row 不同（表名与主键在生成时只解析一次）
+  // 每行共用同一套上下文，只有 row 不同
   const base = { ...sourceOf(data), columns: data.columns.map(column => column.name) }
   await copyRowsSql(kind, rows.map(row => ({ ...base, row })))
 }
@@ -224,27 +207,17 @@ const currentConnection = computed(
   () => connections.value.find(c => c.id === connId.value) ?? null,
 )
 
-/**
- * 库选择：空 = 连接默认库。查询结果的描述 / 来源表、生成 SQL 的库名都跟随它。
- *
- * 「不静默改变选择」的约定与执行器一致：每个连接记住上一次用过的库，
- * 切回来按它恢复；库列表加载失败或不含已选库时**保留选择**，绝不悄悄回落。
- */
-/** 库列表：后端返回的原始列表（含系统库），是否展示由设置决定 */
+/** 库选择：空 = 连接默认库 */
+/** 库列表（含系统库），是否展示由设置决定 */
 const databases = ref<DatabaseInfo[]>([])
 const database = ref('')
 const lastDatabaseByConn = new Map<number, string>()
 
-/**
- * 「展示系统库」设置。
- *
- * 与命令执行器 / 元数据弹窗 / 补全候选同一套策略（utils/sql/sqlVisibility）：
- * 后端总是返回全部库并只打「系统库」标记，隐藏与否是前端展示层的事。
- */
+/** 「展示系统库」设置 */
 const showSystemDatabases = computed(() =>
   parseShowSystemDatabases(configStore.values.sql_show_system_databases))
 
-/** 过滤后的库列表：与其它页面口径一致，关闭设置后不再列出系统库 */
+/** 过滤后的库列表：关闭设置后不列出系统库 */
 const visibleDatabases = computed(() =>
   filterDatabaseInfos(databases.value, dialectOf(currentConnection.value?.dbType ?? 'mysql'), showSystemDatabases.value))
 
@@ -262,7 +235,7 @@ const databaseSelection = computed({
   },
 })
 
-/** 占位文案：直接写清不选时会落到哪个连接默认库 */
+/** 占位文案：显示不选时会落到哪个连接默认库 */
 const databasePlaceholder = computed(() => {
   const fallback = currentConnection.value?.database
   return fallback ? `连接默认：${fallback}` : '选择数据库'
@@ -303,12 +276,7 @@ async function loadConnections() {
   }
 }
 
-/**
- * 载入模板配置。
- *
- * 变量表单由模板中的变量配置驱动，因此需要拉取模板完整内容；
- * 同时把模板自带的连接与库带过来作为默认选中项。
- */
+/** 载入模板配置（变量表单由模板驱动） */
 async function loadTemplateConfig(id: number | null) {
   if (!id) {
     variableConfigs.value = []
@@ -329,13 +297,7 @@ async function loadTemplateConfig(id: number | null) {
       connId.value = tpl.connId
     }
 
-    /*
-     * 库：模板配了自带库就以它为准（换模板即默认选中该模板的库）；
-     * 模板没配库时**保持查询页当前的选择**，不做「清空成连接默认库」这种静默改变。
-     *
-     * 同时要把它记进 lastDatabaseByConn：connId 的 watcher 是按这张记忆表恢复库的，
-     * 上面「从模板取连接」的那一步会触发它 —— 不记的话刚设好的库会被覆盖回空。
-     */
+    /* 模板配了库就以它为准，否则保持当前选择；并记入 lastDatabaseByConn */
     if (tpl.database) {
       database.value = tpl.database
       if (connId.value) {
@@ -368,22 +330,13 @@ function parseJSON<T>(raw: string, fallback: T): T {
 
 // ------------------------------------------------------------ 执行
 
-/**
- * 执行查询。
- *
- * targetPage 为要查询的页码；页大小为 0（不分页）时忽略页码。
- * reuseTotal 为真表示翻页：沿用上次的总数，后端不再重复统计，
- * 只有重新执行（新条件、改页大小、换模板/连接）时才重新统计。
- */
+/** 执行查询；reuseTotal 为真表示翻页并沿用上次总数 */
 async function handleRun(targetPage = 1, reuseTotal = false) {
   if (!templateId.value) {
     notify.warning('请先选择 SQL 模板')
     return
   }
-  /*
-   * 停用的模板不允许执行。后端也会拦（见 DBService.ExecuteTemplateQuery），
-   * 这里先就地说明原因，省掉一次必然失败的请求。
-   */
+  /* 停用的模板不允许执行，后端也会拦 */
   if (currentTemplate.value && !currentTemplate.value.enabled) {
     notify.warning(`模板「${currentTemplate.value.name}」已停用，请先在 SQL 模板管理中启用`)
     return
@@ -395,12 +348,11 @@ async function handleRun(targetPage = 1, reuseTotal = false) {
 
   running.value = true
   const values = formRef.value?.getValues() ?? variableValues.value
-  // 页大小为 0 表示不分页：页码传 0，后端不会追加 LIMIT
+  // 页大小为 0 表示不分页：页码传 0
   const requestPage = pageSize.value > 0 ? Math.max(targetPage, 1) : 0
 
   try {
-    // 只传模板 ID 与变量值；SQL 与脚本由后端从模板读取。
-    // 库传所选的（空 = 连接默认库），后端会把它钉在会话上并随结果回带生效库。
+    // 只传模板 ID 与变量值，SQL 由后端从模板读取
     const data = await executeTemplateQuery({
       templateId: templateId.value,
       connId: connId.value,
@@ -413,9 +365,9 @@ async function handleRun(targetPage = 1, reuseTotal = false) {
     })
     result.value = data
     lastTotal.value = data.total
-    // 查询成功自动切到结果页签（日志页签只是过程记录，不该挡住结果）
+    // 查询成功自动切到结果页签
     activeTab.value = 'result'
-    // 以服务端返回的页码为准，避免页码越界后界面与数据不一致
+    // 以服务端返回的页码为准
     page.value = data.page > 0 ? data.page : 1
     if (data.pageSize > 0) {
       pageSize.value = data.pageSize
@@ -436,11 +388,7 @@ async function handleRun(targetPage = 1, reuseTotal = false) {
     const message = e instanceof Error ? e.message : String(e)
     result.value = null
     logStore.logError(message)
-    /*
-     * 模板语法错误只在日志里留痕、不再弹窗：
-     * 查询页改不了模板（SQL 由模板决定），弹窗除了打扰没别的用途，
-     * 出错位置会在「SQL 模板」页的编辑器里以红色波浪线标出。
-     */
+    /* 模板语法错误只在日志留痕，不弹窗 */
     if (!message.includes('模板语法错误')) {
       notify.error(message)
     }
@@ -450,9 +398,7 @@ async function handleRun(targetPage = 1, reuseTotal = false) {
   }
 }
 
-/**
- * 翻页：沿用上次统计到的总数，后端不再重复统计。
- */
+/** 翻页：沿用上次统计到的总数 */
 function changePage(target: number) {
   if (pageSize.value <= 0) {
     return
@@ -460,12 +406,7 @@ function changePage(target: number) {
   void handleRun(target, true)
 }
 
-/**
- * 修改每页条数（0 表示不分页）：回到第一页重新查询。
- *
- * 分页 ↔ 不分页之间切换时总数口径不同（不分页返回的 total 只是本次行数），
- * 因此这种情况必须重新统计；都在分页状态且已有总数时可以复用。
- */
+/** 修改每页条数（0 = 不分页）：回第一页重新查询 */
 function changePageSize(size: number) {
   if (size === pageSize.value) {
     return
@@ -478,17 +419,10 @@ function changePageSize(size: number) {
 
 // ------------------------------------------------------------ 状态同步
 
-/**
- * 上次上报的状态指纹，用于去重。
- * 工具回传状态会触发父组件保存，若不去重极易与渲染形成循环。
- */
+/** 上次上报的状态指纹，用于去重 */
 let lastEmittedSignature = ''
 
-/**
- * 上报当前状态。
- * 变量值直接读表单实例，不再维护额外的响应式镜像——
- * 镜像每次收到新对象都会触发 watch，是渲染循环的常见来源。
- */
+/** 上报当前状态（变量值直接读表单实例） */
 function notifyChange() {
   const values = formRef.value?.getValues() ?? variableValues.value
 
@@ -508,13 +442,13 @@ function notifyChange() {
   emit('change', props.tabId, payload)
 }
 
-/** 模板/连接/每页条数变化时上报；变量值由表单的 change 事件主动触发上报 */
+/** 模板/连接/每页条数变化时上报；变量值由表单 change 触发 */
 watch(
   () => JSON.stringify([templateId.value, connId.value, pageSize.value]),
   () => notifyChange(),
 )
 
-/** 切换模板时重新加载其配置，并回到第一页 */
+/** 切换模板时重载配置并回到第一页 */
 watch(templateId, id => {
   void loadTemplateConfig(id)
   result.value = null
@@ -522,7 +456,7 @@ watch(templateId, id => {
   lastTotal.value = 0
 })
 
-/** 切换连接后原结果不再对应当前库，清空并重置分页；库选择按连接恢复 */
+/** 切换连接后清空结果、重置分页，库选择按连接恢复 */
 watch(connId, async (id) => {
   result.value = null
   page.value = 1
@@ -531,12 +465,7 @@ watch(connId, async (id) => {
   await loadDatabases()
 })
 
-/**
- * 其他标签页的数据变更通知。
- *
- * 连接管理 / SQL 模板是独立的单例标签页，改动后通过事件广播；
- * 这里据此刷新下拉与当前引用模板的配置（变量表单由模板驱动）。
- */
+/** 其他标签页的数据变更通知：刷新下拉与当前模板配置 */
 const offTemplatesChanged = EventsOn('templates:changed', async () => {
   await loadTemplates()
   if (templateId.value) {
@@ -546,7 +475,7 @@ const offTemplatesChanged = EventsOn('templates:changed', async () => {
 
 const offConnectionsChanged = EventsOn('connections:changed', async () => {
   await loadConnections()
-  // 连接编辑可能改了默认库 / 可见库：刷新列表（不动已选的库）
+  // 连接编辑可能改了默认库 / 可见库，刷新列表
   await loadDatabases()
 })
 
@@ -564,7 +493,7 @@ onMounted(async () => {
     connId.value = (props.initialPayload.connId as number) ?? null
     variableValues.value =
       (props.initialPayload.variableValues as Record<string, unknown>) ?? {}
-    // 每页条数是本标签的私有状态，从 payload 恢复（0 是合法值：不分页，不能用 || 兜底）
+    // 每页条数是本标签私有状态（0 是合法值，不能用 || 兜底）
     if (props.initialPayload.pageSize !== undefined) {
       const savedPageSize = Number(props.initialPayload.pageSize)
       if (Number.isFinite(savedPageSize) && savedPageSize >= 0) {
@@ -579,7 +508,7 @@ onMounted(async () => {
     }
   }
   finally {
-    // 失败也要上报，否则遮罩会一直盖住界面
+    // 失败也要上报，否则遮罩不消失
     emit('ready')
   }
 })
@@ -587,7 +516,7 @@ onMounted(async () => {
 
 <template>
   <div ref="rootRef" class="db-query">
-    <!-- 顶部操作栏：选模板 → 选连接 → 执行 -->
+    <!-- 顶部操作栏：模板 / 连接 / 库 -->
     <header class="db-query__toolbar">
       <div class="db-query__toolbar-left">
         <Combobox v-model="templateSelection" :options="templateOptions" placeholder="选择 SQL 模板"
@@ -595,7 +524,7 @@ onMounted(async () => {
 
         <ConnectionSelect v-model="connId" :connections="connections" clearable width="200px" />
 
-        <!-- 库：空 = 连接默认库；描述 / 来源表反查与生成 SQL 的库名都跟随它 -->
+        <!-- 库：空 = 连接默认库 -->
         <Combobox v-model="databaseSelection" :options="databaseOptions" :placeholder="databasePlaceholder"
           search-placeholder="搜索数据库…" clearable width="160px" />
 
@@ -637,7 +566,7 @@ onMounted(async () => {
           @change="notifyChange" @submit="handleRun()" />
       </section>
 
-      <!-- 结果区：执行日志固定页签在最前，查询结果在后 -->
+      <!-- 结果区：执行日志页签固定在最前 -->
       <section class="db-query__result">
         <TabGroup v-model="activeTab" :items="resultTabs" class="min-h-0 flex-1">
           <template #panel-log>
@@ -650,7 +579,7 @@ onMounted(async () => {
                 @row-contextmenu="openRowMenu" />
               <EmptyState v-else description="尚未执行查询" />
 
-              <!-- 分页常驻：页大小填 0 即不分页；语句不支持分页时由 supported 提示 -->
+              <!-- 分页常驻：页大小填 0 即不分页 -->
               <ResultPagination v-if="result" :page="page" :page-size="pageSize" :total="result.total"
                 :page-count="result.pageCount" :supported="result.pageSize > 0 || pageSize === 0"
                 :elapsed-ms="result.elapsedMs" :loading="running" @change="changePage" @size-change="changePageSize" />
@@ -660,7 +589,7 @@ onMounted(async () => {
       </section>
     </div>
 
-    <!-- 结果行右键菜单：复制为 INSERT / UPDATE / DELETE + 当前模板配置的导出模板 -->
+    <!-- 结果行右键菜单：复制为 INSERT / UPDATE / DELETE + 导出模板 -->
     <ContextMenu v-model:visible="rowMenuVisible" :x="rowMenuX" :y="rowMenuY" :items="rowMenuItems"
       @select="handleRowMenuSelect" />
   </div>
@@ -680,7 +609,7 @@ onMounted(async () => {
   justify-content: space-between;
   gap: 12px;
   padding: 10px 16px;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .db-query__toolbar-left,
@@ -704,7 +633,7 @@ onMounted(async () => {
   min-height: 0;
   overflow: auto;
   padding: 14px 16px 16px;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .db-query__section-title {
@@ -716,21 +645,21 @@ onMounted(async () => {
   font-weight: 600;
 }
 
-/* 标题前的强调条，弱化版的分区标记 */
+/* 标题前的强调条 */
 .db-query__section-bar {
   width: 3px;
   height: 14px;
   border-radius: 2px;
-  background: var(--brand-color);
+  background: var(--color-brand);
 }
 
 .db-query__section-title small {
-  color: var(--text-muted);
+  color: var(--color-muted);
   font-size: var(--app-font-size-xs);
   font-weight: 400;
 }
 
-/* 条件数量靠右，与模板来源形成左右信息分布 */
+/* 条件数量靠右 */
 .db-query__section-title small:last-child {
   margin-left: auto;
 }
@@ -741,12 +670,12 @@ onMounted(async () => {
   flex: 1;
   min-width: 0;
   min-height: 0;
-  /* 页签栏贴住上方分界线：上方不留多余空白 */
+  /* 页签栏贴住上方分界线 */
   padding: 2px 16px 0;
   overflow: hidden;
 }
 
-/* 页签（执行日志 / 查询结果）：页签栏固定，内容区占满剩余高度 */
+/* 页签：页签栏固定，内容区占满剩余高度 */
 .db-query__tabs {
   display: flex;
   flex-direction: column;
@@ -756,12 +685,12 @@ onMounted(async () => {
 
 
 
-/* 结果表格自己滚动；横向留白由分栏 padding 提供，不再另加 */
+/* 结果表格自己滚动，横向留白由分栏 padding 提供 */
 .db-query__result :deep(.result-table) {
   flex: 1;
   min-height: 0;
   padding: 0;
 }
 
-/* 结果表格自带滚动，分页控件固定在底部（见 ResultPagination） */
+/* 结果表格自带滚动，分页控件固定在底部 */
 </style>
