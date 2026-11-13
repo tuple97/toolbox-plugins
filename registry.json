@@ -1,7 +1,205 @@
 {
   "schemaVersion": 2,
-  "updatedAt": "2026-10-27T06:21:07.585Z",
+  "updatedAt": "2026-11-13T02:18:02.086Z",
   "plugins": [
+    {
+      "id": "com.toolbox.agent-accounts",
+      "name": "Agent 账号管理",
+      "version": "1.9.9",
+      "publisher": "toolbox",
+      "description": "多来源 AI 编程账号管理：导入、余量查询、按来源切换、任意账号单独签到与一键批量签到。",
+      "author": "Toolbox",
+      "icon": "chart",
+      "homepage": "",
+      "license": "MIT",
+      "sourceDir": "agent-accounts",
+      "repo": "https://github.com/tuple97/toolbox-plugins/tree/main/plugins/agent-accounts",
+      "download": "https://github.com/tuple97/toolbox-plugins/releases/download/plugins-20261113-1017/com.toolbox.agent-accounts-1.9.9.zip",
+      "checksum": "sha256:d8078a0d17f00aa8250afe3251f98fdf6493f6bbf161daf56336e5f5a7a232db",
+      "size": 73414,
+      "official": true,
+      "engines": {
+        "toolbox": ">=0.1.1",
+        "pluginApi": "^1.0.0"
+      },
+      "dependencies": {},
+      "permissions": {
+        "storage": true,
+        "events": true,
+        "server": {
+          "enabled": true
+        },
+        "files": [
+          "%APPDATA%\\JetBrains",
+          "%LOCALAPPDATA%\\JetBrains",
+          "%APPDATA%\\CodeBuddy",
+          "%LOCALAPPDATA%\\CodeBuddy CN",
+          "%LOCALAPPDATA%\\WorkBuddy",
+          "%APPDATA%\\Cursor",
+          "%APPDATA%\\Windsurf",
+          "%APPDATA%\\Qoder",
+          "%APPDATA%\\Code",
+          "%APPDATA%\\Kiro",
+          "%APPDATA%\\Antigravity IDE",
+          "%APPDATA%\\Trae",
+          "%APPDATA%\\Trae CN",
+          "%APPDATA%\\Trae Solo",
+          "%APPDATA%\\Trae CN Solo",
+          "%APPDATA%\\Zed",
+          "%USERPROFILE%\\.codex"
+        ],
+        "network": [
+          "www.codebuddy.ai",
+          "www.codebuddy.cn",
+          "copilot.tencent.com",
+          "api.github.com",
+          "github.com",
+          "cursor.com",
+          "api2.cursor.sh",
+          "*.windsurf.com",
+          "*.codeium.com",
+          "qoder.com",
+          "openapi.qoder.sh",
+          "*.kiro.dev",
+          "*.amazonaws.com",
+          "accounts.google.com",
+          "oauth2.googleapis.com",
+          "www.googleapis.com",
+          "daily-cloudcode-pa.googleapis.com",
+          "daily-cloudcode-pa.sandbox.googleapis.com",
+          "agent.minimax.cn",
+          "api.cline.bot",
+          "api.workos.com",
+          "phoenix-gw.alibaba.com",
+          "www.accio-ai.com",
+          "lobsterai-server.youdao.com",
+          "xiaohuanxiong.com",
+          "loomyad.xunfei.cn",
+          "account.xfinfr.com",
+          "open.weixin.qq.com",
+          "long.open.weixin.qq.com",
+          "lobsterai.youdao.com",
+          "api-overmind.youdao.com",
+          "*.trae.ai",
+          "api.trae.ai",
+          "www.trae.cn",
+          "api.trae.cn",
+          "*.trae.cn",
+          "*.trae.com.cn",
+          "*.traeapi.us",
+          "*.marscode.com"
+        ]
+      },
+      "runtime": {
+        "backend": "js",
+        "entry": "backend/index.js",
+        "frontend": "frontend/index.js",
+        "exports": [
+          "state",
+          "runAction"
+        ]
+      },
+      "contributes": {
+        "sidebar": {
+          "groups": [
+            {
+              "id": "agent",
+              "label": "AI 账号",
+              "icon": "chart",
+              "order": 30
+            }
+          ]
+        },
+        "tools": [
+          {
+            "type": "agent-accounts",
+            "label": "Agent 账号",
+            "icon": "chart",
+            "multi": false,
+            "description": "管理 CodeBuddy / WorkBuddy 账号，查看余量并签到",
+            "group": "agent"
+          }
+        ]
+      }
+    },
+    {
+      "id": "com.toolbox.command-executor",
+      "name": "SQL 执行",
+      "version": "1.0.1",
+      "publisher": "toolbox",
+      "description": "自由编写并执行 SQL：多语句批量、逐条运行、取消、格式化与智能补全。",
+      "author": "Toolbox",
+      "icon": "terminal",
+      "homepage": "",
+      "license": "MIT",
+      "sourceDir": "command-executor",
+      "repo": "https://github.com/tuple97/toolbox-plugins/tree/main/plugins/command-executor",
+      "download": "https://github.com/tuple97/toolbox-plugins/releases/download/plugins-20261113-1017/com.toolbox.command-executor-1.0.1.zip",
+      "checksum": "sha256:b8ce6adbe3889c31b6189794e98cdadcb9174d0f7fb9f75d075d93f78a065355",
+      "size": 12084,
+      "official": true,
+      "engines": {
+        "toolbox": ">=0.1.0",
+        "pluginApi": "^1.0.0"
+      },
+      "dependencies": {
+        "com.toolbox.connections": "^1.0.0"
+      },
+      "permissions": {},
+      "runtime": {
+        "backend": "none",
+        "frontend": "frontend/index.js"
+      },
+      "contributes": {
+        "sidebar": {
+          "groups": [
+            {
+              "id": "database",
+              "label": "数据库",
+              "icon": "link",
+              "order": 10
+            }
+          ]
+        },
+        "settings": [
+          {
+            "key": "pageSize",
+            "type": "number",
+            "title": "结果每页条数",
+            "default": "200",
+            "description": "查询结果分页展示时的每页记录数",
+            "panel": "main",
+            "order": 10
+          },
+          {
+            "key": "confirmDangerous",
+            "type": "boolean",
+            "title": "写操作二次确认",
+            "default": "true",
+            "panel": "main",
+            "order": 20
+          }
+        ],
+        "settingsPanels": [
+          {
+            "id": "main",
+            "title": "SQL 执行",
+            "icon": "terminal",
+            "order": 200
+          }
+        ],
+        "tools": [
+          {
+            "type": "command-executor",
+            "label": "SQL 执行",
+            "icon": "terminal",
+            "multi": true,
+            "description": "自由编写并执行 SQL，支持取消与智能补全",
+            "group": "database"
+          }
+        ]
+      }
+    },
     {
       "id": "com.toolbox.command-executor",
       "name": "SQL 执行",
@@ -75,6 +273,55 @@
             "icon": "terminal",
             "multi": true,
             "description": "自由编写并执行 SQL，支持取消与智能补全",
+            "group": "database"
+          }
+        ]
+      }
+    },
+    {
+      "id": "com.toolbox.connections",
+      "name": "连接管理",
+      "version": "1.0.1",
+      "publisher": "toolbox",
+      "description": "维护 MySQL / PostgreSQL 连接配置：SSL、超时、读写与生产标记，并可查看库表元数据。",
+      "author": "Toolbox",
+      "icon": "link",
+      "homepage": "",
+      "license": "MIT",
+      "sourceDir": "connections",
+      "repo": "https://github.com/tuple97/toolbox-plugins/tree/main/plugins/connections",
+      "download": "https://github.com/tuple97/toolbox-plugins/releases/download/plugins-20261113-1017/com.toolbox.connections-1.0.1.zip",
+      "checksum": "sha256:0e5ac3d24229db0f72b7c3dcdc252ead00434edd3bd72f89de3a37f98c23f22b",
+      "size": 8524,
+      "official": true,
+      "engines": {
+        "toolbox": ">=0.1.0",
+        "pluginApi": "^1.0.0"
+      },
+      "dependencies": {},
+      "permissions": {},
+      "runtime": {
+        "backend": "none",
+        "frontend": "frontend/index.js"
+      },
+      "contributes": {
+        "sidebar": {
+          "groups": [
+            {
+              "id": "database",
+              "label": "数据库",
+              "icon": "link",
+              "order": 10
+            }
+          ]
+        },
+        "tools": [
+          {
+            "type": "connections",
+            "label": "连接管理",
+            "icon": "link",
+            "multi": false,
+            "description": "维护数据库连接（单例标签）",
             "group": "database"
           }
         ]
@@ -184,6 +431,55 @@
     {
       "id": "com.toolbox.dictionary",
       "name": "词典",
+      "version": "1.0.1",
+      "publisher": "toolbox",
+      "description": "维护本地词典数据，用于查询结果集的值翻译（如状态码、类型枚举）。",
+      "author": "Toolbox",
+      "icon": "book",
+      "homepage": "",
+      "license": "MIT",
+      "sourceDir": "dictionary",
+      "repo": "https://github.com/tuple97/toolbox-plugins/tree/main/plugins/dictionary",
+      "download": "https://github.com/tuple97/toolbox-plugins/releases/download/plugins-20261113-1017/com.toolbox.dictionary-1.0.1.zip",
+      "checksum": "sha256:14bf9571756ce795615cd35462a790d872b668da21a0f9493a222eb997b31ddd",
+      "size": 6316,
+      "official": true,
+      "engines": {
+        "toolbox": ">=0.1.0",
+        "pluginApi": "^1.0.0"
+      },
+      "dependencies": {},
+      "permissions": {},
+      "runtime": {
+        "backend": "none",
+        "frontend": "frontend/index.js"
+      },
+      "contributes": {
+        "sidebar": {
+          "groups": [
+            {
+              "id": "records",
+              "label": "本地记录",
+              "icon": "book",
+              "order": 20
+            }
+          ]
+        },
+        "tools": [
+          {
+            "type": "dictionary",
+            "label": "词典",
+            "icon": "book",
+            "multi": false,
+            "description": "维护本地词典数据（单例标签）",
+            "group": "records"
+          }
+        ]
+      }
+    },
+    {
+      "id": "com.toolbox.dictionary",
+      "name": "词典",
       "version": "1.0.0",
       "publisher": "toolbox",
       "description": "维护本地词典数据，用于查询结果集的值翻译（如状态码、类型枚举）。",
@@ -226,6 +522,61 @@
             "multi": false,
             "description": "维护本地词典数据（单例标签）",
             "group": "records"
+          }
+        ]
+      }
+    },
+    {
+      "id": "com.toolbox.jrebel-server",
+      "name": "JRebel 激活服务",
+      "version": "1.0.2",
+      "publisher": "toolbox",
+      "description": "本地 JRebel 激活服务器：一键启动、实时请求日志、生成激活地址与随机邮箱。",
+      "author": "Toolbox",
+      "icon": "key",
+      "homepage": "",
+      "license": "MIT",
+      "sourceDir": "jrebel-server",
+      "repo": "https://github.com/tuple97/toolbox-plugins/tree/main/plugins/jrebel-server",
+      "download": "https://github.com/tuple97/toolbox-plugins/releases/download/plugins-20261113-1017/com.toolbox.jrebel-server-1.0.2.zip",
+      "checksum": "sha256:9f4dd8e108a6ee7d015acb991b9f5798f1762fa480b423109a4f87d592972d7c",
+      "size": 11112,
+      "official": true,
+      "engines": {
+        "toolbox": ">=0.1.1",
+        "pluginApi": "^1.0.0"
+      },
+      "dependencies": {},
+      "permissions": {
+        "storage": true,
+        "server": {
+          "enabled": true
+        }
+      },
+      "runtime": {
+        "backend": "js",
+        "entry": "backend/index.js",
+        "frontend": "frontend/index.js"
+      },
+      "contributes": {
+        "sidebar": {
+          "groups": [
+            {
+              "id": "devtools",
+              "label": "开发工具",
+              "icon": "key",
+              "order": 40
+            }
+          ]
+        },
+        "tools": [
+          {
+            "type": "jrebel-server",
+            "label": "JRebel 激活服务",
+            "icon": "key",
+            "multi": false,
+            "description": "启动本地 JRebel 激活服务器并生成激活地址",
+            "group": "devtools"
           }
         ]
       }
@@ -276,6 +627,57 @@
             "icon": "document",
             "multi": false,
             "description": "维护 SQL 模板与变量配置（单例标签）",
+            "group": "database"
+          }
+        ]
+      }
+    },
+    {
+      "id": "com.toolbox.sql-workbench",
+      "name": "SQL 工作台",
+      "version": "1.2.5",
+      "publisher": "toolbox",
+      "description": "写模板与按模板查数一体化：配置模式维护模板，检索模式执行查询。",
+      "author": "Toolbox",
+      "icon": "document",
+      "homepage": "",
+      "license": "MIT",
+      "sourceDir": "sql-workbench",
+      "repo": "https://github.com/tuple97/toolbox-plugins/tree/main/plugins/sql-workbench",
+      "download": "https://github.com/tuple97/toolbox-plugins/releases/download/plugins-20261113-1017/com.toolbox.sql-workbench-1.2.5.zip",
+      "checksum": "sha256:d42526b33876dee869cfe9ec1b3734ea2f49168b6ad6b62162f4e916ed1e9318",
+      "size": 14499,
+      "official": true,
+      "engines": {
+        "toolbox": ">=0.1.0",
+        "pluginApi": "^1.0.0"
+      },
+      "dependencies": {
+        "com.toolbox.connections": "^1.0.0"
+      },
+      "permissions": {},
+      "runtime": {
+        "backend": "none",
+        "frontend": "frontend/index.js"
+      },
+      "contributes": {
+        "sidebar": {
+          "groups": [
+            {
+              "id": "database",
+              "label": "数据库",
+              "icon": "link",
+              "order": 10
+            }
+          ]
+        },
+        "tools": [
+          {
+            "type": "sql-workbench",
+            "label": "SQL 工作台",
+            "icon": "document",
+            "multi": false,
+            "description": "写模板与查数一体化（单例标签，可切换配置 / 检索模式）",
             "group": "database"
           }
         ]
