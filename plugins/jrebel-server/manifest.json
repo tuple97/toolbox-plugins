@@ -2,7 +2,7 @@
   "manifestVersion": 1,
   "id": "com.toolbox.jrebel-server",
   "name": "JRebel 激活服务",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "publisher": "toolbox",
   "description": "本地 JRebel 激活服务器：一键启动、实时请求日志、生成激活地址与随机邮箱。",
   "author": "Toolbox",
@@ -27,7 +27,12 @@
   "contributes": {
     "sidebar": {
       "groups": [
-        { "id": "devtools", "label": "开发工具", "icon": "key", "order": 40 }
+        {
+          "id": "devtools",
+          "label": "开发工具",
+          "icon": "key",
+          "order": 40
+        }
       ]
     },
     "tools": [

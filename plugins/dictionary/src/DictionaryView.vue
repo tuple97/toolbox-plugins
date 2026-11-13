@@ -7,6 +7,8 @@ import EmptyState from '@/components/ui/EmptyState.vue'
 import Field from '@/components/ui/Field.vue'
 import Icon from '@/components/ui/Icon.vue'
 import Input from '@/components/ui/Input.vue'
+import ListItem from '@/components/ui/ListItem.vue'
+import Toolbar from '@/components/ui/Toolbar.vue'
 import { askConfirm } from '@/utils/confirm'
 import { notify } from '@/utils/notify'
 import type { TableColumn } from '@/utils/tableLayout'
@@ -253,43 +255,50 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleSaveShortcut))
 
 <template>
   <div class="dict-view">
-    <header class="dict-view__head">
+    <Toolbar class="dict-view__head">
       <div class="dict-view__title">
         <span class="dict-view__bar" aria-hidden="true" />
         <span>词典</span>
       </div>
 
-      <Button @click="openCreateDictionary">
-        <Icon name="plus" />
-        <span>新建词典</span>
-      </Button>
-    </header>
+      <template #actions>
+        <Button @click="openCreateDictionary">
+          <Icon name="plus" />
+          <span>新建词典</span>
+        </Button>
+      </template>
+    </Toolbar>
 
     <div class="dict-view__body">
       <!-- 左：词典列表 -->
       <aside class="dict-view__list">
-        <ul class="dict-view__items">
-          <li v-for="dict in dictionaries" :key="dict.id" class="dict-view__item"
-            :class="{ 'is-active': dict.id === selectedId }" @click="handleSelect(dict.id)">
+        <div v-if="dictionaries.length" class="dict-view__items">
+          <ListItem
+            v-for="dict in dictionaries"
+            :key="dict.id"
+            class="dict-view__item"
+            :active="dict.id === selectedId"
+            @select="handleSelect(dict.id)"
+          >
             <div class="dict-view__item-main">
-              <span class="dict-view__item-name">{{ dict.name }}</span>
-              <span class="dict-view__item-desc">{{ dict.description }}</span>
+              <span class="dict-view__item-name truncate">{{ dict.name }}</span>
+              <span class="dict-view__item-desc truncate">{{ dict.description }}</span>
             </div>
             <Icon name="pencil" class="dict-view__item-edit" title="编辑" @click.stop="openEditDictionary(dict)" />
             <Icon name="trash" class="dict-view__item-del" title="删除" @click.stop="handleDeleteDictionary(dict)" />
-          </li>
-
-          <li v-if="!dictionaries.length" class="dict-view__empty">
-            {{ loading ? '正在读取词典…' : '暂无词典，点击右上角新建' }}
-          </li>
-        </ul>
+          </ListItem>
+        </div>
+        <EmptyState
+          v-else
+          :description="loading ? '正在读取词典…' : '暂无词典，点击右上角新建'"
+        />
       </aside>
 
       <!-- 右：条目编辑 -->
       <section class="dict-view__detail">
         <template v-if="selectedDictionary">
           <div class="dict-view__detail-head">
-            <span class="dict-view__detail-name">{{ selectedDictionary.name }}</span>
+            <span class="dict-view__detail-name truncate">{{ selectedDictionary.name }}</span>
             <small>{{ draftItems.length }} 条</small>
 
             <div class="dict-view__detail-actions">
@@ -356,13 +365,12 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleSaveShortcut))
   padding: 16px 20px;
 }
 
+/* 这页自己有外边距，工具条的边框与内边距要收掉 */
 .dict-view__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
   flex: 0 0 auto;
   margin-bottom: 14px;
+  padding: 0;
+  border: 0;
 }
 
 .dict-view__title {
@@ -406,40 +414,20 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleSaveShortcut))
 
 .dict-view__items {
   flex: 1;
-  margin: 0;
   padding: 6px;
-  list-style: none;
   overflow: auto;
 }
 
-.dict-view__item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 10px;
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-.dict-view__item:hover {
-  background: var(--color-hover);
-}
-
-.dict-view__item.is-active {
-  background: var(--color-active);
-}
-
+/* hover / 选中 / 圆角由宿主的 ListItem 提供 */
 .dict-view__item-main {
   flex: 1;
   min-width: 0;
 }
 
+/* 省略号由 Tailwind 的 truncate 负责 */
 .dict-view__item-name {
   display: block;
   font-size: var(--app-font-size);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .dict-view__item-desc {
@@ -447,9 +435,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleSaveShortcut))
   margin-top: 2px;
   color: var(--color-muted);
   font-size: var(--app-font-size-xs);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .dict-view__item-edit,
@@ -471,13 +456,6 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleSaveShortcut))
 
 .dict-view__item-del:hover {
   color: var(--color-danger);
-}
-
-.dict-view__empty {
-  padding: 20px 10px;
-  color: var(--color-muted);
-  font-size: var(--app-font-size-sm);
-  text-align: center;
 }
 
 .dict-view__detail {
@@ -503,9 +481,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleSaveShortcut))
 }
 
 .dict-view__detail-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  min-width: 0;
 }
 
 .dict-view__detail-head small {

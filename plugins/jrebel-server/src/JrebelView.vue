@@ -2,12 +2,14 @@
 /** JRebel 激活服务面板 */
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import Button from '@/components/ui/Button.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
 import Field from '@/components/ui/Field.vue'
 import Icon from '@/components/ui/Icon.vue'
 import Input from '@/components/ui/Input.vue'
 import NumberInput from '@/components/ui/NumberInput.vue'
 import Switch from '@/components/ui/Switch.vue'
 import Tag from '@/components/ui/Tag.vue'
+import Toolbar from '@/components/ui/Toolbar.vue'
 import { copyText } from '@/utils/clipboard'
 import { notify } from '@/utils/notify'
 import { invoke } from './bridge'
@@ -207,7 +209,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="jrebel">
-    <header class="jrebel__head">
+    <Toolbar>
       <div class="jrebel__title">
         <Icon name="key" />
         <span>JRebel 激活服务</span>
@@ -215,7 +217,7 @@ onBeforeUnmount(() => {
           {{ running ? `运行中 · ${snapshot?.port}` : '未启动' }}
         </Tag>
       </div>
-      <div class="jrebel__head-actions">
+      <template #actions>
         <Button
           :variant="running ? 'secondary' : 'primary'"
           size="sm"
@@ -225,8 +227,8 @@ onBeforeUnmount(() => {
           <Icon :name="running ? 'pause' : 'play'" />
           {{ running ? '停止服务' : '启动服务' }}
         </Button>
-      </div>
-    </header>
+      </template>
+    </Toolbar>
 
     <div class="jrebel__body">
       <section class="jrebel__panel">
@@ -315,14 +317,15 @@ onBeforeUnmount(() => {
           <li v-for="entry in logs" :key="entry.id" class="jrebel__log" :class="{ 'is-error': entry.status >= 400 || entry.error }">
             <span class="jrebel__log-time">{{ timeOf(entry.at) }}</span>
             <span class="jrebel__log-method">{{ entry.method }}</span>
-            <span class="jrebel__log-path" :title="entry.path">{{ entry.path }}</span>
+            <span class="jrebel__log-path truncate" :title="entry.path">{{ entry.path }}</span>
             <span class="jrebel__log-status">{{ entry.status }}</span>
             <span class="jrebel__log-duration">{{ entry.durationMs }}ms</span>
           </li>
         </ul>
-        <p v-else class="jrebel__empty">
-          还没有请求。IDE 里点一次「激活」或刷新授权就能看到。
-        </p>
+        <EmptyState
+          v-else
+          description="还没有请求。IDE 里点一次「激活」或刷新授权就能看到。"
+        />
       </section>
     </div>
   </div>
@@ -335,15 +338,6 @@ onBeforeUnmount(() => {
   height: 100%;
   min-height: 0;
   overflow: hidden;
-}
-
-.jrebel__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px 18px;
-  border-bottom: 1px solid var(--color-border);
 }
 
 .jrebel__title {
@@ -478,12 +472,10 @@ onBeforeUnmount(() => {
   color: var(--color-muted);
 }
 
+/* 省略号交给 Tailwind 的 truncate，这里只管伸缩 */
 .jrebel__log-path {
   flex: 1;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .jrebel__log-status {
@@ -491,9 +483,4 @@ onBeforeUnmount(() => {
   text-align: right;
 }
 
-.jrebel__empty {
-  margin: 8px 0;
-  color: var(--color-muted);
-  font-size: var(--app-font-size-sm);
-}
 </style>

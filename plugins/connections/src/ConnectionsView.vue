@@ -3,9 +3,11 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import Button from '@/components/ui/Button.vue'
 import Checkbox from '@/components/ui/Checkbox.vue'
 import ColorInput from '@/components/ui/ColorInput.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
 import Field from '@/components/ui/Field.vue'
 import Icon from '@/components/ui/Icon.vue'
 import Input from '@/components/ui/Input.vue'
+import ListItem from '@/components/ui/ListItem.vue'
 import NumberInput from '@/components/ui/NumberInput.vue'
 import Combobox from '@/components/ui/Combobox.vue'
 import TabGroup from '@/components/ui/TabGroup.vue'
@@ -379,25 +381,25 @@ onBeforeUnmount(() => {
           </Button>
         </div>
 
-        <ul class="conn-mgr__items">
-          <li
+        <div class="conn-mgr__items">
+          <ListItem
             v-for="item in connections"
             :key="item.id"
             class="conn-mgr__item"
-            :class="{ 'is-active': item.id === editingId }"
+            :active="item.id === editingId"
             :title="item.note || item.name"
-            @click="selectConnection(item)"
+            @select="selectConnection(item)"
           >
             <div class="conn-mgr__item-main">
               <span class="conn-mgr__item-name">
                 <span v-if="item.color" class="conn-mgr__dot" :style="{ background: item.color }" />
-                <span class="conn-mgr__item-text">{{ item.name }}</span>
+                <span class="conn-mgr__item-text truncate">{{ item.name }}</span>
                 <Tag v-if="item.isLocal" size="sm" tone="success" effect="plain">本地</Tag>
                 <Tag v-if="item.isTest" size="sm" tone="warning" effect="plain">测试</Tag>
                 <Tag v-if="item.isProduction" size="sm" tone="danger" effect="plain">生产</Tag>
                 <Tag v-if="item.readOnly" size="sm" tone="info" effect="plain">只读</Tag>
               </span>
-              <span class="conn-mgr__item-addr">
+              <span class="conn-mgr__item-addr truncate">
                 {{ item.dbType }} · {{ item.host }}:{{ item.port }}/{{ item.database }}
               </span>
             </div>
@@ -407,12 +409,10 @@ onBeforeUnmount(() => {
               title="删除"
               @click.stop="handleDelete(item)"
             />
-          </li>
+          </ListItem>
 
-          <li v-if="!connections.length" class="conn-mgr__empty">
-            暂无连接，点击新建创建
-          </li>
-        </ul>
+          <EmptyState v-if="!connections.length" description="暂无连接，点击新建创建" />
+        </div>
       </aside>
 
       <!-- 右：所选连接的详情 -->
@@ -652,29 +652,11 @@ onBeforeUnmount(() => {
 
 .conn-mgr__items {
   flex: 1;
-  margin: 0;
   padding: 6px;
-  list-style: none;
   overflow: auto;
 }
 
-.conn-mgr__item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 10px;
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-.conn-mgr__item:hover {
-  background: var(--color-hover);
-}
-
-.conn-mgr__item.is-active {
-  background: var(--color-active);
-}
-
+/* hover / 选中 / 圆角由宿主的 ListItem 提供，这里只管布局 */
 .conn-mgr__item-main {
   flex: 1;
   min-width: 0;
@@ -688,10 +670,9 @@ onBeforeUnmount(() => {
   font-size: var(--app-font-size);
 }
 
+/* 省略号交给 Tailwind 的 truncate */
 .conn-mgr__item-text {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  min-width: 0;
 }
 
 .conn-mgr__item-addr {
@@ -700,9 +681,6 @@ onBeforeUnmount(() => {
   color: var(--color-muted);
   font-family: var(--font-mono);
   font-size: var(--app-font-size-xs);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 /* 颜色点：环境标记 */
@@ -725,13 +703,6 @@ onBeforeUnmount(() => {
 
 .conn-mgr__item-del:hover {
   color: var(--color-danger);
-}
-
-.conn-mgr__empty {
-  padding: 20px 10px;
-  color: var(--color-muted);
-  font-size: var(--app-font-size-sm);
-  text-align: center;
 }
 
 /* 右侧详情：头部固定，页签区占剩余空间 */

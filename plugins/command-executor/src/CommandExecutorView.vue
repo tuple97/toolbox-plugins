@@ -14,6 +14,7 @@ import Button from '@/components/ui/Button.vue'
 import Combobox from '@/components/ui/Combobox.vue'
 import Icon from '@/components/ui/Icon.vue'
 import TabGroup from '@/components/ui/TabGroup.vue'
+import Toolbar from '@/components/ui/Toolbar.vue'
 import { copyRowsSql, dialectOf, kindOfMenuItem, rowSqlMenuItems } from '@/utils/sql/rowSql'
 import type { ResultSourceContext } from '@/utils/sql/rowSql'
 import { formatSql, minifySql as minifySqlText } from '@/utils/sql/sqlFormat'
@@ -1236,35 +1237,32 @@ watch([connId, database, sql, pageSize], notifyChange)
 <template>
   <div ref="rootRef" class="executor">
     <!-- 顶部操作栏：连接 / 库 / 元数据 -->
-    <header class="executor__toolbar">
-      <div class="executor__toolbar-left">
-        <ConnectionSelect v-model="connId" :connections="connections" width="210px" />
+    <Toolbar class="executor__toolbar">
+      <ConnectionSelect v-model="connId" :connections="connections" width="210px" />
 
-        <Combobox
-          v-model="database"
-          :options="databaseOptions"
-          :placeholder="databasePlaceholder"
-          search-placeholder="搜索数据库…"
-          class="w-[190px]"
-        >
-          <!-- 系统库显示「系统」标记 -->
-          <template #option="{ option }">
-            <span class="min-w-0 flex-1 truncate">{{ option.label }}</span>
-            <small v-if="isSystemDatabase(option.value)" class="executor__db-system">系统</small>
-          </template>
-        </Combobox>
+      <Combobox
+        v-model="database"
+        :options="databaseOptions"
+        :placeholder="databasePlaceholder"
+        search-placeholder="搜索数据库…"
+        class="w-[190px]"
+      >
+        <!-- 系统库显示「系统」标记 -->
+        <template #option="{ option }">
+          <span class="min-w-0 flex-1 truncate">{{ option.label }}</span>
+          <small v-if="isSystemDatabase(option.value)" class="executor__db-system">系统</small>
+        </template>
+      </Combobox>
 
-        <Button
-          variant="secondary"
-          size="icon"
-          title="刷新元数据缓存"
-          @click="refreshMeta"
-        >
-          <Icon name="refresh" />
-        </Button>
-      </div>
-
-    </header>
+      <Button
+        variant="secondary"
+        size="icon"
+        title="刷新元数据缓存"
+        @click="refreshMeta"
+      >
+        <Icon name="refresh" />
+      </Button>
+    </Toolbar>
 
     <!-- 编辑器操作行：运行 / 终止、分析、格式化 -->
     <div class="executor__actions">
@@ -1407,13 +1405,10 @@ watch([connId, database, sql, pageSize], notifyChange)
   overflow: hidden;
 }
 
+/* 工具条的下边框交给下面的操作行，这里只调间距 */
 .executor__toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  /* 下边框在操作行上 */
   padding: 10px 16px 8px;
+  border-bottom: 0;
 }
 
 /* 库下拉的「系统」标记 */
@@ -1422,12 +1417,6 @@ watch([connId, database, sql, pageSize], notifyChange)
   margin-left: 12px;
   color: var(--color-muted);
   font-size: var(--app-font-size-xs);
-}
-
-.executor__toolbar-left {
-  display: flex;
-  align-items: center;
-  gap: 8px;
 }
 
 /* 编辑器操作行：只放图标按钮 */

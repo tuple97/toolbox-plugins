@@ -2,8 +2,10 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import Button from '@/components/ui/Button.vue'
 import Combobox from '@/components/ui/Combobox.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
 import Icon from '@/components/ui/Icon.vue'
 import Input from '@/components/ui/Input.vue'
+import ListItem from '@/components/ui/ListItem.vue'
 import Switch from '@/components/ui/Switch.vue'
 import TabGroup from '@/components/ui/TabGroup.vue'
 import Tag from '@/components/ui/Tag.vue'
@@ -40,6 +42,7 @@ import { filterDatabaseInfos, parseShowSystemDatabases } from '@/utils/sql/sqlVi
 import { useMetadataStore } from '@/stores/metadataStore'
 import type { SqlSnippet } from '@/utils/sql/sqlSnippets'
 import type {
+  ColumnMeta,
   DatabaseInfo,
   DBConnection,
   ExportTemplate,
@@ -50,6 +53,13 @@ import type {
 } from '@/types'
 
 /** SQL 模板管理（单例标签页） */
+
+const props = defineProps<{
+  /** 组合视图从检索模式切过来时优先打开的模板 */
+  seedTemplateId?: number | null
+  /** 检索模式最近一次查询的结果列（含字段注释），用于自动补齐字段映射 */
+  resultColumns?: ColumnMeta[]
+}>()
 
 const emit = defineEmits<{
   /** 首次加载完成（父级据此关闭 loading 遮罩） */
@@ -62,7 +72,8 @@ const metadataStore = useMetadataStore()
 
 function handleSaveShortcut(event: KeyboardEvent) {
   // 本页面隐藏时实例仍保留，不能和连接/词典页共同响应 Ctrl+S。
-  if (tabStore.activeSingleton !== 'sql-template') return
+  // 判的是工作台的工具类型（合并后不再是旧的 sql-template）。
+  if (tabStore.activeSingleton !== 'sql-workbench') return
   if (event.defaultPrevented) return
   if (!matchesShortcut(event, shortcutOf('save-template', configStore.values.shortcut_config))) return
   event.preventDefault()
@@ -186,6 +197,118 @@ function reuseUnchanged(next: FieldMapping[]): FieldMapping[] {
   })
 }
 
+// ------------------------------------------------------------ 元数据里的字段描述
+
+/**
+ * 从 SQL 文本里粗取表引用（FROM / JOIN 后面的标识符）。
+ * 模板 SQL 结构通常不复杂，这里只为了拿「表 → 字段注释」，
+ * 不做完整的语法分析；解析不到就退回到查询结果列。
+ */
+const TABLE_REF_SOURCE = /(?:from|join)\s+([A-Za-z_][\w$]*(?:\.[A-Za-z_][\w$]*)?)/gi
+
+function tableRefsOf(sql: string): string[] {
+  const out: string[] = []
+  const seen = new Set<string>()
+  TABLE_REF_SOURCE.lastIndex = 0
+  let match = TABLE_REF_SOURCE.exec(sql)
+  while (match !== null) {
+    const raw = match[1] ?? ''
+    if (raw && !seen.has(raw)) {
+      seen.add(raw)
+      out.push(raw)
+    }
+    match = TABLE_REF_SOURCE.exec(sql)
+  }
+  return out
+}
+
+/**
+ * 按字段名查元数据里的注释。
+ *
+ * 数据源是宿主的元数据缓存（`metadataStore.ensureColumns`），
+ * 所以**不依赖是否执行过查询**——只要连接的表结构被加载过就能拿到。
+ */
+function metadataCommentOf(columnName: string): string {
+  const conn = templateConnection.value
+  const target = columnName.trim().toLowerCase()
+  if (!conn || !target) {
+    return ''
+  }
+  const fallbackDb = effectiveDatabase.value
+  for (const ref of tableRefsOf(form.sqlText)) {
+    const parts = ref.split('.')
+    const table = parts[parts.length - 1] ?? ''
+    const database = parts.length > 1 ? (parts[parts.length - 2] ?? '') : fallbackDb
+    if (!table) {
+      continue
+    }
+    const columns = metadataStore.ensureColumns(conn.id, database, table)
+    for (const column of columns) {
+      if (column.name.toLowerCase() === target && column.comment) {
+        return column.comment
+      }
+    }
+  }
+  return ''
+}
+
+// ------------------------------------------------------------ 结果列 → 字段映射
+
+/**
+ * 用查询返回的结果列补齐字段映射。
+ *
+ * 只增不减：已有的列（按 column 匹配）保留用户配好的别名，一个字都不改；
+ * 只给首次出现的列建一条，默认别名取字段注释（没有注释就留空，界面显示「未设置别名」）。
+ */
+function mergeResultColumns(columns: ColumnMeta[]): void {
+  if (!columns.length) {
+    return
+  }
+  const merged = [...fieldMappings.value]
+  const known = new Set(merged.map(item => item.column))
+  let added = 0
+  for (const col of columns) {
+    if (!col.name || known.has(col.name)) {
+      continue
+    }
+    known.add(col.name)
+    // 别名优先用结果列自带的注释，没有就问元数据
+    merged.push({ column: col.name, label: col.comment || metadataCommentOf(col.name) || '' })
+    added++
+  }
+  if (added > 0) {
+    fieldMappings.value = merged
+  }
+}
+
+/**
+ * 变量名恰好与某个字段同名时，用字段描述做默认展示名。
+ * 先查表元数据（不依赖是否执行过查询），查不到才退回查询结果列。
+ */
+function commentOfColumn(name: string): string {
+  const target = name.trim().toLowerCase()
+  if (!target) {
+    return ''
+  }
+  const fromMetadata = metadataCommentOf(name)
+  if (fromMetadata) {
+    return fromMetadata
+  }
+  const hit = (props.resultColumns ?? []).find(col => col.name.toLowerCase() === target)
+  return hit?.comment ?? ''
+}
+
+// 结果列到达时补齐映射：首次挂载（immediate）和后续新结果都走这里
+watch(
+  () => props.resultColumns,
+  (columns) => {
+    if (columns) {
+      mergeResultColumns(columns)
+    }
+  },
+  { immediate: true, deep: false },
+)
+
 // ------------------------------------------------------------ 变量解析
 
 /** 重新解析 SQL 中的变量，保留已有配置 */
@@ -201,14 +324,27 @@ async function refreshVariables() {
     detectedVariables.value = names
 
     const existing = new Map(variableConfigs.value.map(c => [c.name, c]))
-    variableConfigs.value = names.map(name =>
-      existing.get(name) ?? {
-        name,
-        label: name,
-        component: 'input' as const,
-        dataType: 'string' as const,
-      },
-    )
+    variableConfigs.value = names.map((name) => {
+      const prev = existing.get(name)
+      // 新变量：默认展示名直接取字段描述
+      if (!prev) {
+        return {
+          name,
+          label: commentOfColumn(name) || name,
+          component: 'input' as const,
+          dataType: 'string' as const,
+        }
+      }
+      // 已有变量：只在展示名还停在「等于变量名」这个默认值时才补描述，
+      // 用户手动改过的一律不动（避免覆盖人工设置）
+      if (prev.label === prev.name) {
+        const comment = commentOfColumn(name)
+        if (comment && comment !== prev.label) {
+          return { ...prev, label: comment }
+        }
+      }
+      return prev
+    })
   }
   catch (e) {
     const message = e instanceof Error ? e.message : String(e)
@@ -218,6 +354,17 @@ async function refreshVariables() {
     }
   }
 }
+
+/**
+ * 表结构是异步加载的：元数据到位后重跑一次变量解析，
+ * 让默认展示名能拿到字段描述（refreshVariables 内部只补默认值，不会覆盖人工设置）。
+ */
+watch(
+  () => metadataStore.columns,
+  () => {
+    void refreshVariables()
+  },
+)
 
 /** 校验模板语法，把错误标在编辑器上（底部红色波浪线） */
 async function checkTemplate() {
@@ -538,9 +685,10 @@ onMounted(async () => {
   try {
     await Promise.all([loadTemplates(), loadConnections()])
 
-    // 默认选中列表第一项；没有模板时才进入「新建」状态
-    if (templates.value.length > 0) {
-      await loadTemplate(templates.value[0].id)
+    // 优先打开交接过来的模板，其次列表第一项；都没有才进入「新建」
+    const targetId = props.seedTemplateId ?? templates.value[0]?.id
+    if (targetId) {
+      await loadTemplate(targetId)
     }
     else {
       handleCreate()
@@ -561,6 +709,15 @@ onBeforeUnmount(() => {
   offConnectionsChanged()
   window.removeEventListener('keydown', handleSaveShortcut)
 })
+
+/** 切到检索模式前，把当前编辑的模板与归属交接出去 */
+defineExpose({
+  currentSelection: () => ({
+    templateId: editingId.value,
+    connId: form.connId,
+    database: form.database,
+  }),
+})
 </script>
 
 <template>
@@ -576,23 +733,29 @@ onBeforeUnmount(() => {
           </Button>
         </div>
 
-        <ul class="tpl-mgr__items">
-          <li v-for="item in templates" :key="item.id" class="tpl-mgr__item"
-            :class="{ 'is-active': item.id === editingId }" @click="loadTemplate(item.id)">
+        <div class="tpl-mgr__items">
+          <ListItem
+            v-for="item in templates"
+            :key="item.id"
+            class="tpl-mgr__item"
+            :active="item.id === editingId"
+            @select="loadTemplate(item.id)"
+          >
             <div class="tpl-mgr__item-main">
               <span class="tpl-mgr__item-name">
-                <span class="tpl-mgr__item-text">{{ item.name }}</span>
+                <span class="tpl-mgr__item-text truncate">{{ item.name }}</span>
                 <Tag v-if="!item.enabled" size="sm" tone="warning" effect="plain">已停用</Tag>
               </span>
-              <code class="tpl-mgr__item-sql">{{ item.sqlText }}</code>
+              <code class="tpl-mgr__item-sql truncate">{{ item.sqlText }}</code>
             </div>
             <Icon name="trash" class="tpl-mgr__item-del" title="删除" @click.stop="handleDelete(item)" />
-          </li>
+          </ListItem>
 
-          <li v-if="!templates.length" class="tpl-mgr__empty">
-            {{ loading ? '正在读取模板…' : '暂无模板，点击新建创建' }}
-          </li>
-        </ul>
+          <EmptyState
+            v-if="!templates.length"
+            :description="loading ? '正在读取模板…' : '暂无模板，点击新建创建'"
+          />
+        </div>
       </aside>
 
       <!-- 右：编辑区 -->
@@ -609,6 +772,14 @@ onBeforeUnmount(() => {
           <Button :loading="saving" @click="handleSave">
             保存模板
           </Button>
+
+          <!--
+            组合视图的视图切换按钮：margin-left:auto 把它推到头部最右，
+            与查询视图的按钮（工具栏 space-between 的右侧）位置对应。
+          -->
+          <div class="tpl-mgr__head-end">
+            <slot name="toolbar-end" />
+          </div>
         </header>
 
         <!-- 上方：SQL 编辑器，约占 40% -->
@@ -637,7 +808,7 @@ onBeforeUnmount(() => {
           <!-- 补全上下文：所属连接的表/列 + 本模板变量（见 templateCompletionContext） -->
           <CodeEditor ref="sqlEditorRef" v-model="form.sqlText" language="sql" completion-mode="sql-template"
             height="100%" :db-type="templateConnectionDbType" :completion-context="templateCompletionContext"
-            show-format-button @change="scheduleParse" />
+            format-scope="document" show-format-button @change="scheduleParse" />
         </div>
 
         <!-- 下方：配置 Tab 区 -->
@@ -708,7 +879,8 @@ onBeforeUnmount(() => {
   min-width: 0;
   min-height: 0;
   width: 100%;
-  padding: 12px;
+  /* 顶部与查询视图的顶栏内边距对齐（都是 10px），切换时按钮不跳 */
+  padding: 10px 12px 12px;
   box-sizing: border-box;
   overflow: hidden;
 }
@@ -737,30 +909,11 @@ onBeforeUnmount(() => {
 
 .tpl-mgr__items {
   flex: 1;
-  margin: 0;
   padding: 6px;
-  list-style: none;
   overflow: auto;
 }
 
-.tpl-mgr__item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 10px;
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-.tpl-mgr__item:hover {
-  background: var(--color-hover);
-}
-
-.tpl-mgr__item.is-active {
-  /* 选中只用底色表示，不加左侧竖条 */
-  background: var(--color-active);
-}
-
+/* hover / 选中 / 圆角由宿主的 ListItem 提供 */
 .tpl-mgr__item-main {
   flex: 1;
   min-width: 0;
@@ -777,9 +930,6 @@ onBeforeUnmount(() => {
 /* 名字占满剩余宽度并省略；「已停用」标签固定在行尾不被挤掉 */
 .tpl-mgr__item-text {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .tpl-mgr__item-sql {
@@ -788,9 +938,6 @@ onBeforeUnmount(() => {
   color: var(--color-muted);
   font-family: var(--font-mono);
   font-size: var(--app-font-size-xs);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .tpl-mgr__item-del {
@@ -807,15 +954,9 @@ onBeforeUnmount(() => {
   color: var(--color-danger);
 }
 
-.tpl-mgr__empty {
-  padding: 20px 10px;
-  color: var(--color-muted);
-  font-size: var(--app-font-size-sm);
-  text-align: center;
-}
-
 /* 右侧编辑区：头部固定，SQL 区按比例，配置区吃掉剩余空间 */
 .tpl-mgr__editor {
+  position: relative;
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -832,6 +973,16 @@ onBeforeUnmount(() => {
   flex-wrap: wrap;
   gap: 8px;
   flex: 0 0 auto;
+  /*
+   * 右内边距 4px：编辑区在 .tpl-mgr 的 12px 内边距里，
+   * 加上这 4px 后按钮右边缘距窗口 16px，与查询视图顶栏保持一致。
+   */
+  padding-right: 4px;
+}
+
+/* 视图切换按钮贴最右 */
+.tpl-mgr__head-end {
+  margin-left: auto;
 }
 
 .tpl-mgr__name {

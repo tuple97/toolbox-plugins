@@ -1,10 +1,10 @@
 {
   "manifestVersion": 1,
-  "id": "com.toolbox.sql-template",
-  "name": "SQL 模板",
-  "version": "1.0.0",
+  "id": "com.toolbox.sql-workbench",
+  "name": "SQL 工作台",
+  "version": "1.2.5",
   "publisher": "toolbox",
-  "description": "维护 SQL 模板：变量配置、字段映射、导出模板与前置/后置脚本。",
+  "description": "写模板与按模板查数一体化：配置模式维护模板，检索模式执行查询。",
   "author": "Toolbox",
   "license": "MIT",
   "icon": "document",
@@ -23,16 +23,21 @@
   "contributes": {
     "sidebar": {
       "groups": [
-        { "id": "database", "label": "数据库", "icon": "link", "order": 10 }
+        {
+          "id": "database",
+          "label": "数据库",
+          "icon": "link",
+          "order": 10
+        }
       ]
     },
     "tools": [
       {
-        "type": "sql-template",
-        "label": "SQL 模板",
+        "type": "sql-workbench",
+        "label": "SQL 工作台",
         "icon": "document",
         "multi": false,
-        "description": "维护 SQL 模板与变量配置（单例标签）",
+        "description": "写模板与查数一体化（单例标签，可切换配置 / 检索模式）",
         "group": "database"
       }
     ]

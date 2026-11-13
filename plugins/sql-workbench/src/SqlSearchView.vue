@@ -6,6 +6,7 @@ import EmptyState from '@/components/ui/EmptyState.vue'
 import Icon from '@/components/ui/Icon.vue'
 import TabGroup from '@/components/ui/TabGroup.vue'
 import Tag from '@/components/ui/Tag.vue'
+import Toolbar from '@/components/ui/Toolbar.vue'
 import { notify } from '@/utils/notify'
 import DynamicForm from '@/components/DynamicForm.vue'
 import ResultTable from '@/components/ResultTable.vue'
@@ -31,6 +32,7 @@ import { useConfigStore } from '@/stores/configStore'
 import { useLogStore } from '@/stores/logStore'
 import { useTabStore } from '@/stores/tabStore'
 import type {
+  ColumnMeta,
   ContextMenuAction,
   DatabaseInfo,
   DBConnection,
@@ -48,12 +50,20 @@ const props = defineProps<{
   tabId: number
   /** 从 Tab payload 恢复的状态 */
   initialPayload: Record<string, unknown>
+  /** 组合视图从配置模式切过来时交接的模板 */
+  seedTemplateId?: number | null
+  /** 交接的数据源 */
+  seedConnId?: number | null
+  /** 交接的库 */
+  seedDatabase?: string
 }>()
 
 const emit = defineEmits<{
   (e: 'change', tabId: number, payload: DbQueryPayload): void
   /** 首次初始化完成 */
   (e: 'ready'): void
+  /** 查询返回的结果列，供配置模式的字段映射自动补齐 */
+  (e: 'result-columns', columns: ColumnMeta[]): void
 }>()
 
 const logStore = useLogStore()
@@ -365,6 +375,8 @@ async function handleRun(targetPage = 1, reuseTotal = false) {
     })
     result.value = data
     lastTotal.value = data.total
+    // 结果列交给组合视图：配置模式的字段映射据此补齐
+    emit('result-columns', data.columns ?? [])
     // 查询成功自动切到结果页签
     activeTab.value = 'result'
     // 以服务端返回的页码为准
@@ -488,9 +500,12 @@ onBeforeUnmount(() => {
 
 onMounted(async () => {
   try {
-    // 恢复上次状态
-    templateId.value = (props.initialPayload.templateId as number) ?? null
-    connId.value = (props.initialPayload.connId as number) ?? null
+    // 组合视图切换过来时优先用交接的选择，其次才是本标签上次的状态
+    templateId.value = props.seedTemplateId ?? (props.initialPayload.templateId as number) ?? null
+    connId.value = props.seedConnId ?? (props.initialPayload.connId as number) ?? null
+    if (props.seedDatabase) {
+      database.value = props.seedDatabase
+    }
     variableValues.value =
       (props.initialPayload.variableValues as Record<string, unknown>) ?? {}
     // 每页条数是本标签私有状态（0 是合法值，不能用 || 兜底）
@@ -512,39 +527,45 @@ onMounted(async () => {
     emit('ready')
   }
 })
+
+/** 切到配置模式前，把当前的条件交接出去 */
+defineExpose({
+  currentSelection: () => ({
+    templateId: templateId.value,
+    connId: connId.value,
+    database: database.value,
+  }),
+})
 </script>
 
 <template>
   <div ref="rootRef" class="db-query">
     <!-- 顶部操作栏：模板 / 连接 / 库 -->
-    <header class="db-query__toolbar">
-      <div class="db-query__toolbar-left">
-        <Combobox v-model="templateSelection" :options="templateOptions" placeholder="选择 SQL 模板"
-          search-placeholder="搜索模板…" clearable class="w-[240px]" />
+    <Toolbar>
+      <Combobox v-model="templateSelection" :options="templateOptions" placeholder="选择 SQL 模板"
+        search-placeholder="搜索模板…" clearable class="w-[240px]" />
 
-        <ConnectionSelect v-model="connId" :connections="connections" clearable width="200px" />
+      <ConnectionSelect v-model="connId" :connections="connections" clearable width="200px" />
 
-        <!-- 库：空 = 连接默认库 -->
-        <Combobox v-model="databaseSelection" :options="databaseOptions" :placeholder="databasePlaceholder"
-          search-placeholder="搜索数据库…" clearable width="160px" />
+      <!-- 库：空 = 连接默认库 -->
+      <Combobox v-model="databaseSelection" :options="databaseOptions" :placeholder="databasePlaceholder"
+        search-placeholder="搜索数据库…" clearable width="160px" />
 
-        <!-- 图标按钮：跳转到对应的单例标签页 -->
-        <Button variant="secondary" size="icon" title="连接管理" @click="openTool('connections')">
-          <Icon name="link" />
-        </Button>
+      <!-- 图标按钮：跳转到对应的单例标签页 -->
+      <Button variant="secondary" size="icon" title="连接管理" @click="openTool('connections')">
+        <Icon name="link" />
+      </Button>
 
-        <Button variant="secondary" size="icon" title="SQL 模板管理" @click="openTool('sql-template')">
-          <Icon name="document" />
-        </Button>
-      </div>
-
-      <div class="db-query__toolbar-right">
+      <template #actions>
         <Button :loading="running" @click="handleRun()">
           <Icon name="play" />
           <span>执行查询</span>
         </Button>
-      </div>
-    </header>
+
+        <!-- 组合视图从这里插切换按钮：放在执行查询右侧 -->
+        <slot name="toolbar-end" />
+      </template>
+    </Toolbar>
 
     <!-- 主体：上为查询条件，下为查询结果 -->
     <div class="db-query__body">
@@ -601,22 +622,6 @@ onMounted(async () => {
   flex-direction: column;
   height: 100%;
   overflow: hidden;
-}
-
-.db-query__toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 16px;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.db-query__toolbar-left,
-.db-query__toolbar-right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
 }
 
 /* 条件区在上、结果区在下 */

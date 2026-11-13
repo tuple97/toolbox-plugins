@@ -2,7 +2,7 @@
   "manifestVersion": 1,
   "id": "com.toolbox.dictionary",
   "name": "词典",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "publisher": "toolbox",
   "description": "维护本地词典数据，用于查询结果集的值翻译（如状态码、类型枚举）。",
   "author": "Toolbox",
@@ -20,7 +20,12 @@
   "contributes": {
     "sidebar": {
       "groups": [
-        { "id": "records", "label": "本地记录", "icon": "book", "order": 20 }
+        {
+          "id": "records",
+          "label": "本地记录",
+          "icon": "book",
+          "order": 20
+        }
       ]
     },
     "tools": [
