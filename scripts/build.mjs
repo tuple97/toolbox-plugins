@@ -360,11 +360,13 @@ async function main() {
   validateRegistry(merged.registry)
   writeRegistry(REGISTRY_PATH, merged.registry)
 
-  // 用真实产物回读校验，确认索引与 zip 一一对应
+  // 用真实产物回读校验，确认索引与 zip 一一对应。
+  // 只校验本次构建的条目：索引会保留历史版本，而 release/ 里只有本次的包。
   verifyRelease({
     registry: merged.registry,
     releaseDir: RELEASE_DIR,
     distDir: DIST_DIR,
+    onlyKeys: [...merged.added, ...merged.unchanged],
   })
 
   console.log(`\n本次新增/更新 ${merged.added.length} 条，未变化 ${merged.unchanged.length} 条，`

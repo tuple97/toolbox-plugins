@@ -154,13 +154,27 @@ export function readZipEntry(buffer, names, target) {
 /**
  * 校验整份索引与磁盘上的发布产物。
  *
- * @param {{ registry: object, releaseDir: string, distDir: string }} params
+ * @param {{
+ *   registry: object,
+ *   releaseDir: string,
+ *   distDir: string,
+ *   onlyKeys?: string[],
+ * }} params
+ *
+ * `onlyKeys` 限定「本次构建产出」的条目（`id@version`）：
+ * 索引按设计保留历史版本（用户要能装旧版、能回滚），而本次 `release/`
+ * 只有本次构建的包 —— 不限定的话，任何一次升版本都会因为历史版本
+ * 「缺少发布包」而发布失败。历史条目的可靠性由不可变下载地址保证。
  */
-export function verifyRelease({ registry, releaseDir, distDir }) {
+export function verifyRelease({ registry, releaseDir, distDir, onlyKeys }) {
   validateRegistry(registry)
 
+  const filter = Array.isArray(onlyKeys) ? new Set(onlyKeys) : null
   const results = []
   for (const entry of registry.plugins) {
+    if (filter && !filter.has(entryKey(entry))) {
+      continue
+    }
     const zipPath = path.join(releaseDir, `${entry.id}-${entry.version}.zip`)
     const pluginDist = distDir
       ? path.join(distDir, entry.id, entry.version)
